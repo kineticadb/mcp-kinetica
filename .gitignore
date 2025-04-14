@@ -40,3 +40,5 @@ htmlcov/
 *.parquet
 mcp-env/
 *.env
+extra/
+mcp-env-py311/
