@@ -7,7 +7,7 @@ import gpudb
 from typing import Dict, List, Union
 import re
 import json
-from .MCPTableMonitor import MCPTableMonitor
+from .mcp_table_monitor import MCPTableMonitor
 from .client import create_kinetica_client
 
 # Load environment variables
@@ -17,7 +17,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mcp-kinetica")
 
-# Dependencies for FastMCP
+
 mcp = FastMCP("mcp-kinetica", dependencies=["gpudb", "python-dotenv"])
 
 
@@ -26,7 +26,7 @@ mcp = FastMCP("mcp-kinetica", dependencies=["gpudb", "python-dotenv"])
 active_monitors = {}
 
 
-# === TOOL 1: List all tables/schemas/views ===
+
 @mcp.tool()
 def list_tables() -> list[str]:
     """List all available tables, views, and schemas in the database."""
@@ -65,7 +65,6 @@ def describe_table(table_name: str) -> dict:
         logger.error(f"Failed to describe table: {str(e)}")
         return {"error": str(e)}
 
-# === TOOL 3: Execute a SQL query ===
 @mcp.tool()
 def query_sql(sql: str) -> dict:
     """Run a safe SQL query on the Kinetica database."""
@@ -79,7 +78,7 @@ def query_sql(sql: str) -> dict:
         return {"error": str(e)}
 
 
-# === TOOL 4: Fetch records from a table ===
+
 @mcp.tool()
 def get_records(table_name: str, limit: int = 100) -> list[dict]:
     """Fetch raw JSON records from a given table."""
