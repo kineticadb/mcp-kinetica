@@ -1,5 +1,9 @@
-import logging
-import os
+
+import os, sys
+print(f"[DEBUG] Python version: {sys.version}")
+print(f"[DEBUG] sys.executable: {sys.executable}")
+print(f"[DEBUG] Working directory: {os.getcwd()}")
+print(f"[DEBUG] PYTHONPATH: {os.environ.get('PYTHONPATH')}")
 import json
 from dotenv import load_dotenv
 from fastmcp import FastMCP
@@ -7,8 +11,82 @@ import gpudb
 from typing import Dict, List, Union
 import re
 import json
-from .mcp_table_monitor import MCPTableMonitor
-from .client import create_kinetica_client
+import gpudb
+from gpudb import GPUdb, GPUdbTableMonitor
+from gpudb import GPUdbTableMonitor as Monitor
+import logging
+import sys, os
+from collections import deque
+
+
+
+def create_kinetica_client():
+    """Create and return a GPUdb client instance using env variables."""
+    options = gpudb.GPUdb.Options()
+    options.username = os.getenv("KINETICA_USER")
+    options.password = os.getenv("KINETICA_PASSWORD")
+    return gpudb.GPUdb(
+        host=[os.getenv("KINETICA_URL")],
+        options=options
+    )
+
+
+
+
+class MCPTableMonitor(Monitor.Client):
+    def __init__(self, db: GPUdb, table_name: str):
+        self._logger = logging.getLogger("TableMonitor")
+        self._logger.setLevel(logging.INFO)
+        self.recent_inserts = deque(maxlen=50)  # Stores last 50 inserts
+
+        callbacks = [
+            Monitor.Callback(
+                Monitor.Callback.Type.INSERT_DECODED,
+                self.on_insert,
+                self.on_error,
+                Monitor.Callback.InsertDecodedOptions(
+                    Monitor.Callback.InsertDecodedOptions.DecodeFailureMode.SKIP
+                )
+            ),
+            Monitor.Callback(
+                Monitor.Callback.Type.UPDATED,
+                self.on_update,
+                self.on_error
+            ),
+            Monitor.Callback(
+                Monitor.Callback.Type.DELETED,
+                self.on_delete,
+                self.on_error
+            )
+        ]
+
+        super().__init__(db, table_name, callback_list=callbacks)
+
+    def on_insert(self, record: dict):
+        self.recent_inserts.appendleft(record)
+        self._logger.info(f"[INSERT] New record: {record}")
+
+    def on_update(self, count: int):
+        self._logger.info(f"[UPDATE] {count} rows updated")
+
+    def on_delete(self, count: int):
+        self._logger.info(f"[DELETE] {count} rows deleted")
+
+    def on_error(self, message: str):
+        self._logger.error(f"[ERROR] {message}")
+
+
+# Function to start the monitor
+def start_table_monitor(table: str) -> str:
+    """
+    Starts a table monitor on the specified Kinetica table
+    and logs insert, update, and delete events.
+    """
+    db = create_kinetica_client()
+    monitor = MCPTableMonitor(db, table)
+    monitor.start_monitor()
+
+    return f"Monitoring started on table '{table}' (insert, update, delete)"
 
 # Load environment variables
 load_dotenv()
@@ -191,3 +269,8 @@ def get_sql_context(context_name: str) -> Dict[str, Union[str, List[str], Dict[s
         return parsed
     except Exception as e:
         return {"error": str(e), "context_name": context_name}
+    
+
+
+if __name__ == "__main__":
+    mcp.run()

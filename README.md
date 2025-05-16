@@ -51,3 +51,18 @@ KINETICA_PASSWORD= {pwd}
 
 Use fastmcp dev for an interactive testing environment with the MCP Inspector.
 
+<pre> ```
+fastmcp dev src/server.py 
+
+# With local package in editable mode
+fastmcp dev src/server.py --with-editable .
+``` </pre>
+
+
+## Claude Desktop Integration (For Regular Use)
+Use fastmcp install to set up your server for persistent use within the Claude Desktop app. It handles creating an isolated environment using uv.
+
+fastmcp install your_server_file.py
+# With a custom name in Claude
+fastmcp install your_server_file.py --name "My Analysis Tool"
+
