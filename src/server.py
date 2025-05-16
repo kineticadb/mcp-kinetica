@@ -219,6 +219,17 @@ def start_table_monitor(table: str) -> str:
     active_monitors[table] = monitor
     return f"Monitoring started on table '{table}'"
 
+@mcp.resource("table-monitor://{table}")
+def get_recent_inserts(table: str) -> List[dict]:
+    """
+    Returns the most recent inserts from a monitored table.
+    This resource is generic and does not assume a specific schema or use case.
+    """
+    monitor = active_monitors.get(table)
+    if monitor is None:
+        return [{"error": f"No monitor found for table '{table}'."}]
+
+    return list(monitor.recent_inserts)
 
 @mcp.resource("sql-context://{context_name}")
 def get_sql_context(context_name: str) -> Dict[str, Union[str, List[str], Dict[str, str]]]:
