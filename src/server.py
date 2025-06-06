@@ -1,4 +1,3 @@
-
 import os, sys
 print(f"[DEBUG] Python version: {sys.version}")
 print(f"[DEBUG] sys.executable: {sys.executable}")
@@ -281,7 +280,6 @@ def get_sql_context(context_name: str) -> Dict[str, Union[str, List[str], Dict[s
     except Exception as e:
         return {"error": str(e), "context_name": context_name}
     
-
 
 if __name__ == "__main__":
     mcp.run()
