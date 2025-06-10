@@ -1,20 +1,13 @@
-import os, sys
-print(f"[DEBUG] Python version: {sys.version}")
-print(f"[DEBUG] sys.executable: {sys.executable}")
-print(f"[DEBUG] Working directory: {os.getcwd()}")
-print(f"[DEBUG] PYTHONPATH: {os.environ.get('PYTHONPATH')}")
 import json
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 import gpudb 
 from typing import Dict, List, Union
 import re
-import json
-import gpudb
-from gpudb import GPUdb, GPUdbTableMonitor
+from gpudb import GPUdb
 from gpudb import GPUdbTableMonitor as Monitor
 import logging
-import sys, os
+import os
 from collections import deque
 
 
@@ -74,18 +67,6 @@ class MCPTableMonitor(Monitor.Client):
     def on_error(self, message: str):
         self._logger.error(f"[ERROR] {message}")
 
-
-# Function to start the monitor
-def start_table_monitor(table: str) -> str:
-    """
-    Starts a table monitor on the specified Kinetica table
-    and logs insert, update, and delete events.
-    """
-    db = create_kinetica_client()
-    monitor = MCPTableMonitor(db, table)
-    monitor.start_monitor()
-
-    return f"Monitoring started on table '{table}' (insert, update, delete)"
 
 # Load environment variables
 load_dotenv()
