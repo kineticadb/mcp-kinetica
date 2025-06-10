@@ -7,7 +7,12 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+*.log
 # Ignore virtual environments
 venv/
 .mcp-env/
