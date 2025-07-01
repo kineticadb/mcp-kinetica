@@ -1,10 +1,42 @@
 [project]
 name = "mcp-kinetica"
-version = "0.1.0"
+version = "7.2.3.0"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=2.7.1",   # requires Python3.10
+    "gpudb>=7.2.2.9",   # requires Python3.8
+]
+
 description = "MCP Server for Kinetica Database"
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
-    "fastmcp>=2.7.1",
-    "gpudb>=7.2.2.9",
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Database",
+]
+keywords = [ "kinetica", "gpudb" ]
+
+[project.scripts]
+mcp-kinetica = "mcp_kinetica.server:main"
+
+[project.urls]
+Homepage = "https://github.com/kineticadb/mcp-kinetica/"
+
+[build-system]
+requires = ["setuptools>=77"] # minimum version of setuptools for toml support
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["mcp_kinetica", "tests"]
+namespaces = true
+
+[tool.setuptools.package-data]
+mcp_kinetica = ["kinetica_sql_system_prompt.md"]
+
+[tool.uv.sources]
+mcp-kinetica = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "mcp-kinetica",
 ]

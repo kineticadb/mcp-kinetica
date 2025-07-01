@@ -1,6 +1,7 @@
 import json
 from dotenv import load_dotenv
-from fastmcp import FastMCP
+from fastmcp import FastMCP, settings as fastmcp_settings
+from fastmcp import prompts
 import gpudb 
 from typing import Dict, List, Union
 import re
@@ -8,8 +9,10 @@ from gpudb import GPUdb
 from gpudb import GPUdbTableMonitor as Monitor
 import logging
 import os
+from importlib import resources as impresources
 from collections import deque
 
+DEFAULT_LOG_LEVEL = "WARNING"
 
 
 def create_kinetica_client():
@@ -17,6 +20,7 @@ def create_kinetica_client():
     options = gpudb.GPUdb.Options()
     options.username = os.getenv("KINETICA_USER")
     options.password = os.getenv("KINETICA_PASSWORD")
+    options.logging_level = logger.level
     return gpudb.GPUdb(
         host=[os.getenv("KINETICA_URL")],
         options=options
@@ -28,7 +32,7 @@ def create_kinetica_client():
 class MCPTableMonitor(Monitor.Client):
     def __init__(self, db: GPUdb, table_name: str):
         self._logger = logging.getLogger("TableMonitor")
-        self._logger.setLevel(logging.INFO)
+        self._logger.setLevel(logger.level)
         self.recent_inserts = deque(maxlen=50)  # Stores last 50 inserts
 
         callbacks = [
@@ -71,13 +75,31 @@ class MCPTableMonitor(Monitor.Client):
 # Load environment variables
 load_dotenv()
 
-# Initialize logger
-logging.basicConfig(level=logging.INFO)
+# Text-based log level
+LOG_LEVEL = os.getenv("KINETICA_LOGLEVEL", DEFAULT_LOG_LEVEL)
+
+# Set MCP server log level
+fastmcp_settings.log_level = LOG_LEVEL
+
+# Initialize MCP client logger
+logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger("mcp-kinetica")
 
 
 mcp = FastMCP("mcp-kinetica", dependencies=["gpudb", "python-dotenv"])
 
+
+@mcp.prompt(name="kinetica-sql-agent")
+def kinetica_sql_prompt() -> str:
+    """
+    System prompt to help Claude generate valid, performant Kinetica SQL queries.
+    Loaded from markdown file for easier editing and versioning.
+    """
+
+    # Note: this may not work with a fastmcp install, depending on environment.
+    #       It will work for fastmcp dev and PyPI-based installs
+    with (impresources.files("mcp_kinetica") / 'kinetica_sql_system_prompt.md').open("r") as f:
+        return f.read()
 
 
 # A global registry of active table monitors
@@ -91,7 +113,7 @@ def list_tables() -> list[str]:
     logger.info("Fetching all tables, views, and schemas")
     client = create_kinetica_client()
     response = client.show_table("*", options={"show_children": "true"})
-    return response.get("table_names", [])
+    return sorted(response.get("table_names", []))
 
 
 @mcp.tool()
@@ -260,7 +282,10 @@ def get_sql_context(context_name: str) -> Dict[str, Union[str, List[str], Dict[s
         return parsed
     except Exception as e:
         return {"error": str(e), "context_name": context_name}
-    
+
+
+def main():
+    mcp.run()
 
 if __name__ == "__main__":
-    mcp.run()
+    main()

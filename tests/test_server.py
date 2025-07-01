@@ -1,142 +1,155 @@
-import unittest
-import time
-from dotenv import load_dotenv
-from src.server import (
-    create_kinetica_client,
-    list_tables,
-    describe_table,
-    query_sql,
-    get_records,
-    insert_json,
-    get_sql_context, 
-    start_table_monitor
-)
+import pytest
+import pytest_asyncio
+from fastmcp import Client
+from mcp_kinetica.server import mcp
+import json
 
-load_dotenv()
+SCHEMA = "ki_home"
+TABLE = f"{SCHEMA}.sample"
 
-class TestMCPKinetica(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.client = create_kinetica_client()
-        cls.schema = "priyanshigarg068_gmail"
-        cls.table = f"{cls.schema}.sample"
-        cls.sample_records = [
-            {"user_id": 1, "name": "Alice", "email": "alice@example.com"},
-            {"user_id": 2, "name": "Bob", "email": "bob@example.com"},
-        ]
+@pytest_asyncio.fixture
+async def client():
+    async with Client(mcp) as c:
+        yield c
 
-    def test_list_tables(self):
-        """Ensure the test table appears in the full table list."""
-        tables = list_tables()
-        self.assertIn(self.table, tables)
+@pytest.mark.asyncio
+async def test_list_tables(client):
+    result = await client.call_tool("list_tables", {})
 
-    def test_describe_table(self):
-        """Verify describe_table returns valid structure for a table."""
-        result = describe_table(self.table)
+    if isinstance(result, list) and hasattr(result[0], "text"):
+        tables = json.loads(result[0].text)
+    else:
+        raise TypeError("Expected a list with a TextContent object containing `.text`")
 
-        self.assertNotIn("error", result, msg=f"describe_table failed: {result.get('error')}")
-        self.assertIn("table_info", result)
-        self.assertIn("type_info", result)
-
-        # If type_info was returned, validate structure
-        if result["type_info"]:
-            self.assertIn("type_ids", result["type_info"])
-            self.assertIsInstance(result["type_info"]["type_ids"], list)
-
-    def test_get_records(self):
-        """Verify that known sample records exist in the table."""
-        records = get_records(self.table)
-
-        # Check that at least 2 records exist
-        self.assertGreaterEqual(len(records), 2)
-
-        # Assert presence of sample records
-        expected_users = {
-            (1, "Alice", "alice@example.com"),
-            (2, "Bob", "bob@example.com")
-        }
-
-        actual_users = {
-            (rec["user_id"], rec["name"], rec["email"])
-            for rec in records if "user_id" in rec
-        }
-
-        for user in expected_users:
-            self.assertIn(user, actual_users)
+    assert isinstance(tables, list)
+    assert TABLE in tables
 
 
-    def test_query_sql_success(self):
-        """Insert unique rows and verify they appear in SELECT query."""
-        # Insert uniquely identifiable test records
-        unique_records = [
-            {"user_id": 5001, "name": "TempUserA", "email": "a@temp.com"},
-            {"user_id": 5002, "name": "TempUserB", "email": "b@temp.com"},
-        ]
-        insert_response = insert_json(self.table, unique_records)
-        print("DEBUG: Insert response:", insert_response)
-        self.assertIn("data", insert_response)
-        self.assertEqual(insert_response["data"]["count_inserted"], len(unique_records))
+@pytest.mark.asyncio
+async def test_describe_table(client):
+    result = await client.call_tool("describe_table", {"table_name": TABLE})
 
-        # Query all records and verify our inserts are present
-        result = query_sql(f"SELECT * FROM {self.table}")
-        self.assertIn("column_1", result)
-        self.assertIn("column_headers", result)
+    if isinstance(result, list) and hasattr(result[0], "text"):
+        data = json.loads(result[0].text)
+    else:
+        raise TypeError("Expected a list with a TextContent object containing `.text`")
 
-        user_ids = result["column_1"]
-        self.assertIn(5001, user_ids)
-        self.assertIn(5002, user_ids)
+    assert isinstance(data, dict)
+    assert "table_info" in data
+    assert data["table_info"]["table_name"] == TABLE
 
 
+@pytest.mark.asyncio
+async def test_get_records(client):
+    """Verify that known sample records exist in the table."""
+    result = await client.call_tool("get_records", {"table_name": TABLE})
 
-    def test_query_sql_failure(self):
-        """Ensure failed queries return structured error."""
-        result = query_sql("SELECT * FROM nonexistent_table_xyz")
-        self.assertIn("error", result)
+    if isinstance(result, list) and hasattr(result[0], "text"):
+        records = json.loads(result[0].text)
+    else:
+        raise TypeError(f"Unexpected result format: {result}")
 
-    def test_insert_json_isolated(self):
-        """Verify insert_json handles valid payload and returns count."""
-        # Insert a new isolated row with ID 9999
-        new_record = [{"user_id": 9999, "name": "Charlie", "email": "charlie@example.com"}]
-        response = insert_json(self.table, new_record) 
-        print("DEBUG: Response from insert_json:")
-        print(response)
-        self.assertIn("data", response)
-        self.assertIn("count_inserted", response["data"])
-        self.assertGreaterEqual(response["data"]["count_inserted"], 1)
+    # Check that at least 2 records exist
+    assert isinstance(records, list)
+    assert len(records) >= 2
 
-    def test_get_sql_context(self): 
-        """
-        Tests that the SQL context metadata for 'kgraph_ctx' is retrieved and parsed correctly.
-        """
-        context_name = "kgraph_ctx"
-        result = get_sql_context(context_name)
+    # Assert presence of sample records
+    expected_users = {
+        (1, "Alice", "alice@example.com"),
+        (2, "Bob", "bob@example.com")
+    }
 
-        print("SQL Context Metadata:", result)
+    actual_users = {
+        (rec["user_id"], rec["name"], rec["email"])
+        for rec in records if "user_id" in rec
+    }
 
-        assert isinstance(result, dict)
-        assert result.get("context_name") == context_name
-        assert "table" in result
-        assert "comment" in result
-        assert "rules" in result
-        assert isinstance(result["rules"], list)
+    for user in expected_users:
+        assert user in actual_users
 
-    def test_start_table_monitor_success(self):
-        """
-        Starts a monitor and checks the response message.
-        Assumes the table already exists in the test environment.
-        """
-        TEST_TABLE = self.table
-        response = start_table_monitor(TEST_TABLE)
+@pytest.mark.asyncio
+async def test_query_sql_success(client):
+    """Insert unique rows and verify they appear in SELECT query."""
+    unique_records = [
+        {"user_id": 5001, "name": "TempUserA", "email": "a@temp.com"},
+        {"user_id": 5002, "name": "TempUserB", "email": "b@temp.com"},
+    ]
 
-        assert isinstance(response, str)
-        assert "Monitoring started" in response
-        assert TEST_TABLE in response
+    # Insert the unique records
+    insert_result = await client.call_tool("insert_json", {
+        "table_name": TABLE,
+        "records": unique_records
+    })
 
+    if isinstance(insert_result, list) and hasattr(insert_result[0], "text"):
+        insert_data = json.loads(insert_result[0].text)
+    else:
+        raise TypeError(f"Unexpected insert result format: {insert_result}")
 
-    @classmethod
-    def tearDownClass(cls):
-        pass  # Do not drop schema/table — reused across runs
+    assert "data" in insert_data
+    assert insert_data["data"]["count_inserted"] == len(unique_records)
 
+    # Query the table
+    query_result = await client.call_tool("query_sql", {
+        "sql": f"SELECT * FROM {TABLE}"
+    })
 
-if __name__ == "__main__":
-    unittest.main()
+    if isinstance(query_result, list) and hasattr(query_result[0], "text"):
+        parsed = json.loads(query_result[0].text)
+    else:
+        raise TypeError(f"Unexpected query result format: {query_result}")
+
+    assert "column_1" in parsed
+    assert "column_headers" in parsed
+
+    user_ids = parsed["column_1"]
+    assert 5001 in user_ids
+    assert 5002 in user_ids
+
+@pytest.mark.asyncio
+async def test_query_sql_failure(client):
+    """Ensure failed queries return structured error."""
+    result = await client.call_tool("query_sql", {
+        "sql": "SELECT * FROM nonexistent_table_xyz"
+    })
+
+    if isinstance(result, list) and hasattr(result[0], "text"):
+        parsed = json.loads(result[0].text)
+    else:
+        raise TypeError(f"Unexpected result format: {result}")
+
+    assert "error" in parsed
+
+@pytest.mark.asyncio
+async def test_insert_json_isolated(client):
+    """Verify insert_json handles valid payload and returns count."""
+    new_record = [{"user_id": 9999, "name": "Charlie", "email": "charlie@example.com"}]
+    
+    result = await client.call_tool("insert_json", {
+        "table_name": TABLE,
+        "records": new_record
+    })
+
+    if isinstance(result, list) and hasattr(result[0], "text"):
+        parsed = json.loads(result[0].text)
+    else:
+        raise TypeError(f"Unexpected result format: {result}")
+
+    assert "data" in parsed
+    assert "count_inserted" in parsed["data"]
+    assert parsed["data"]["count_inserted"] >= 1
+
+@pytest.mark.asyncio
+async def test_get_sql_context(client):
+    context_name = "kgraph_ctx"
+    raw = await client.read_resource(f"sql-context://{context_name}")
+
+    assert isinstance(raw, list) and hasattr(raw[0], "text"), f"Unexpected result format: {raw}"
+
+    context = json.loads(raw[0].text)
+
+    assert isinstance(context, dict)
+    assert context.get("context_name") == context_name
+    assert "table" in context
+    assert "comment" in context
+    assert "rules" in context and isinstance(context["rules"], list)
