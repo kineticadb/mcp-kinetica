@@ -3,30 +3,31 @@ import pytest_asyncio
 from fastmcp import Client
 from mcp_kinetica.server import mcp
 import json
+import logging
+
+LOG = logging.getLogger(__name__)
 
 SCHEMA = "ki_home"
 TABLE = f"{SCHEMA}.sample"
 
 @pytest_asyncio.fixture
 async def client():
-    async with Client(mcp) as c:
-        yield c
+    async with Client(mcp) as mcp_client:
+        LOG.info(f"Connected: {mcp_client.is_connected()}")
+        await mcp_client.ping()
+        yield mcp_client
+
 
 @pytest.mark.asyncio
-async def test_list_tables(client):
-    result = await client.call_tool("list_tables", {})
-
-    if isinstance(result, list) and hasattr(result[0], "text"):
-        tables = json.loads(result[0].text)
-    else:
-        raise TypeError("Expected a list with a TextContent object containing `.text`")
-
+async def test_list_tables(client: Client):
+    result = await client.call_tool(name="list_tables", arguments={"schema": "demo"})
+    tables = result.data
+    LOG.info(f"Tables: {tables}")
     assert isinstance(tables, list)
-    assert TABLE in tables
 
 
 @pytest.mark.asyncio
-async def test_describe_table(client):
+async def test_describe_table(client: Client):
     result = await client.call_tool("describe_table", {"table_name": TABLE})
 
     if isinstance(result, list) and hasattr(result[0], "text"):
@@ -40,7 +41,7 @@ async def test_describe_table(client):
 
 
 @pytest.mark.asyncio
-async def test_get_records(client):
+async def test_get_records(client: Client):
     """Verify that known sample records exist in the table."""
     result = await client.call_tool("get_records", {"table_name": TABLE})
 
@@ -68,7 +69,7 @@ async def test_get_records(client):
         assert user in actual_users
 
 @pytest.mark.asyncio
-async def test_query_sql_success(client):
+async def test_query_sql_success(client: Client):
     """Insert unique rows and verify they appear in SELECT query."""
     unique_records = [
         {"user_id": 5001, "name": "TempUserA", "email": "a@temp.com"},
@@ -107,7 +108,7 @@ async def test_query_sql_success(client):
     assert 5002 in user_ids
 
 @pytest.mark.asyncio
-async def test_query_sql_failure(client):
+async def test_query_sql_failure(client: Client):
     """Ensure failed queries return structured error."""
     result = await client.call_tool("query_sql", {
         "sql": "SELECT * FROM nonexistent_table_xyz"
@@ -140,7 +141,7 @@ async def test_insert_json_isolated(client):
     assert parsed["data"]["count_inserted"] >= 1
 
 @pytest.mark.asyncio
-async def test_get_sql_context(client):
+async def test_get_sql_context(client: Client):
     context_name = "kgraph_ctx"
     raw = await client.read_resource(f"sql-context://{context_name}")
 

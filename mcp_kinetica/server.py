@@ -1,79 +1,26 @@
 import json
 from dotenv import load_dotenv
-from fastmcp import FastMCP, settings as fastmcp_settings
-from fastmcp import prompts
-import gpudb 
 from typing import Dict, List, Union
 import re
-from gpudb import GPUdb
-from gpudb import GPUdbTableMonitor as Monitor
 import logging
 import os
 from importlib import resources as impresources
 from collections import deque
 
-DEFAULT_LOG_LEVEL = "WARNING"
+from fastmcp import (
+    FastMCP,
+    settings as fastmcp_settings
+)
 
-
-def create_kinetica_client():
-    """Create and return a GPUdb client instance using env variables."""
-    options = gpudb.GPUdb.Options()
-    options.username = os.getenv("KINETICA_USER")
-    options.password = os.getenv("KINETICA_PASSWORD")
-    options.logging_level = logger.level
-    return gpudb.GPUdb(
-        host=[os.getenv("KINETICA_URL")],
-        options=options
-    )
-
-
-
-
-class MCPTableMonitor(Monitor.Client):
-    def __init__(self, db: GPUdb, table_name: str):
-        self._logger = logging.getLogger("TableMonitor")
-        self._logger.setLevel(logger.level)
-        self.recent_inserts = deque(maxlen=50)  # Stores last 50 inserts
-
-        callbacks = [
-            Monitor.Callback(
-                Monitor.Callback.Type.INSERT_DECODED,
-                self.on_insert,
-                self.on_error,
-                Monitor.Callback.InsertDecodedOptions(
-                    Monitor.Callback.InsertDecodedOptions.DecodeFailureMode.SKIP
-                )
-            ),
-            Monitor.Callback(
-                Monitor.Callback.Type.UPDATED,
-                self.on_update,
-                self.on_error
-            ),
-            Monitor.Callback(
-                Monitor.Callback.Type.DELETED,
-                self.on_delete,
-                self.on_error
-            )
-        ]
-
-        super().__init__(db, table_name, callback_list=callbacks)
-
-    def on_insert(self, record: dict):
-        self.recent_inserts.appendleft(record)
-        self._logger.info(f"[INSERT] New record: {record}")
-
-    def on_update(self, count: int):
-        self._logger.info(f"[UPDATE] {count} rows updated")
-
-    def on_delete(self, count: int):
-        self._logger.info(f"[DELETE] {count} rows deleted")
-
-    def on_error(self, message: str):
-        self._logger.error(f"[ERROR] {message}")
-
+from gpudb import ( 
+    GPUdb,
+    GPUdbTableMonitor as Monitor
+)
 
 # Load environment variables
 load_dotenv()
+
+DEFAULT_LOG_LEVEL = "WARNING"
 
 # Text-based log level
 LOG_LEVEL = os.getenv("KINETICA_LOGLEVEL", DEFAULT_LOG_LEVEL)
@@ -85,8 +32,10 @@ fastmcp_settings.log_level = LOG_LEVEL
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger("mcp-kinetica")
 
-
 mcp = FastMCP("mcp-kinetica", dependencies=["gpudb", "python-dotenv"])
+
+# A global registry of active table monitors
+active_monitors = {}
 
 
 @mcp.prompt(name="kinetica-sql-agent")
@@ -102,17 +51,17 @@ def kinetica_sql_prompt() -> str:
         return f.read()
 
 
-# A global registry of active table monitors
-active_monitors = {}
-
+def create_kinetica_client():
+    """Create and return a GPUdb client instance using env variables."""
+    return GPUdb.get_connection(logging_level=logger.level)
 
 
 @mcp.tool()
-def list_tables() -> list[str]:
+def list_tables(schema = "*") -> list[str]:
     """List all available tables, views, and schemas in the database."""
     logger.info("Fetching all tables, views, and schemas")
     client = create_kinetica_client()
-    response = client.show_table("*", options={"show_children": "true"})
+    response = client.show_table(schema, options={"show_children": "true"})
     return sorted(response.get("table_names", []))
 
 
@@ -184,7 +133,7 @@ def insert_json(table_name: str, records: list[dict]) -> dict:
         json.loads(json_data)
 
         # and pass table_name into query params
-        combined_options = gpudb.GPUdb.merge_dicts(
+        combined_options = GPUdb.merge_dicts(
             {"table_name": table_name},
             {"truncate_table": "false"},
         )
@@ -204,6 +153,50 @@ def insert_json(table_name: str, records: list[dict]) -> dict:
     except Exception as e:
         logger.error(f"Insertion failed: {str(e)}")
         return {"error": str(e)}
+
+
+class MCPTableMonitor(Monitor.Client):
+    def __init__(self, db: GPUdb, table_name: str):
+        self._logger = logging.getLogger("TableMonitor")
+        self._logger.setLevel(logger.level)
+        self.recent_inserts = deque(maxlen=50)  # Stores last 50 inserts
+
+        callbacks = [
+            Monitor.Callback(
+                Monitor.Callback.Type.INSERT_DECODED,
+                self.on_insert,
+                self.on_error,
+                Monitor.Callback.InsertDecodedOptions(
+                    Monitor.Callback.InsertDecodedOptions.DecodeFailureMode.SKIP
+                )
+            ),
+            Monitor.Callback(
+                Monitor.Callback.Type.UPDATED,
+                self.on_update,
+                self.on_error
+            ),
+            Monitor.Callback(
+                Monitor.Callback.Type.DELETED,
+                self.on_delete,
+                self.on_error
+            )
+        ]
+
+        super().__init__(db, table_name, callback_list=callbacks)
+
+    def on_insert(self, record: dict):
+        self.recent_inserts.appendleft(record)
+        self._logger.info(f"[INSERT] New record: {record}")
+
+    def on_update(self, count: int):
+        self._logger.info(f"[UPDATE] {count} rows updated")
+
+    def on_delete(self, count: int):
+        self._logger.info(f"[DELETE] {count} rows deleted")
+
+    def on_error(self, message: str):
+        self._logger.error(f"[ERROR] {message}")
+
 
 @mcp.tool()
 def start_table_monitor(table: str) -> str:

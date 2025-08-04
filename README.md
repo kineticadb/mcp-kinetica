@@ -14,8 +14,15 @@
 
 - [Overview](#overview)
 - [Features](#features)
+  - [Tools](#tools)
+  - [Resources](#resources)
 - [Installation](#installation)
-- [Setup/Configuration](#setup-and-configuration)
+  - [MCP](#mcp)
+    - [MCP via PIP](#mcp-via-pip)
+    - [MCP via UV](#mcp-via-uv)
+- [Setup and Configuration](#setup-and-configuration)
+  - [Claude Desktop Configuration](#claude-desktop-configuration)
+  - [MCP Inspector (For Testing)](#mcp-inspector-for-testing)
 - [Support](#support)
 - [Contact Us](#contact-us)
 
@@ -131,7 +138,7 @@ You can integrate the Kinetica MCP server in two ways:
           "env": {
             "KINETICA_URL": "<http://your-kinetica-host:9191>",
             "KINETICA_USER": "<your_username>",
-            "KINETICA_PASSWORD": "<your_password>",
+            "KINETICA_PASSWD": "<your_password>",
             "KINETICA_LOGLEVEL": "INFO"
           }
         }
@@ -158,7 +165,7 @@ You can integrate the Kinetica MCP server in two ways:
     ```env
     KINETICA_URL=http://<your-kinetica-host>:9191
     KINETICA_USER=<your_username>
-    KINETICA_PASSWORD=<your_password>
+    KINETICA_PASSWD=<your_password>
     ```
 
 3. Update Python environment:
