@@ -1,17 +1,15 @@
 import json
 from dotenv import load_dotenv
-from typing import  Union
+from typing import Union
 import re
 import logging
 import os
 from importlib import resources as impresources
 from collections import deque
-from fastmcp.exceptions import ToolError
 
-from fastmcp import (
-    FastMCP,
-    settings as fastmcp_settings
-)
+from fastmcp import FastMCP
+import fastmcp.settings as fastmcp_settings
+from fastmcp.exceptions import ToolError
 
 from gpudb import ( 
     GPUdb,
@@ -53,7 +51,7 @@ def kinetica_sql_prompt() -> str:
         return f.read()
 
 
-def create_kinetica_client() -> GPUdb:
+def _create_kinetica_client() -> GPUdb:
     """Create and return a GPUdb client instance using env variables."""
     return GPUdb.get_connection(logging_level=logger.level)
 
@@ -62,7 +60,7 @@ def create_kinetica_client() -> GPUdb:
 def list_tables(schema = "*") -> list[str]:
     """List all available tables, views, and schemas in the database."""
     logger.info("Fetching all tables, views, and schemas")
-    client = create_kinetica_client()
+    client = _create_kinetica_client()
 
     try:
         response = client.show_table(schema, options={"show_children": "true"})
@@ -76,7 +74,7 @@ def list_tables(schema = "*") -> list[str]:
 def describe_table(table_name: str) -> dict[str, str]:
     """Return a dictionary of column name to column type."""
     logger.info(f"Describing table: {table_name}")
-    client = create_kinetica_client()
+    client = _create_kinetica_client()
 
     try:
         result_rows = client.query(f"describe {table_name}")
@@ -89,55 +87,51 @@ def describe_table(table_name: str) -> dict[str, str]:
         raise ToolError(f"Failed to describe table '{table_name}': {str(e)}")
 
 
-@mcp.tool()
-def query_sql(sql: str) -> dict:
-    """Run a safe SQL query on the Kinetica database."""
-    logger.info(f"Executing SQL: {sql}")
-    client = create_kinetica_client()
-
-    response = client.execute_sql_and_decode(statement=sql, limit=10, 
+def _query_sql_sub(client: GPUdb, sql: str, limit: int = 10) -> list[dict]:
+    response = client.execute_sql_and_decode(statement=sql, limit=limit, 
                                                 get_column_major=False)
-    
     status_info = response.status_info
     if(status_info['status'] != 'OK'):
         raise ToolError(f"SQL execution failed: {status_info.get('message', 'Unknown error')}")
 
     records = [ rec.as_dict() for rec in response.records]
-    return { 'records': records }
+    return records
 
 
 @mcp.tool()
-def get_records(table_name: str, limit: int = 100) -> list[dict]:
+def query_sql(sql: str, limit: int = 10) -> list[dict]:
+    """Run a safe SQL query on the Kinetica database."""
+    logger.info(f"Executing SQL: {sql}")
+    client = _create_kinetica_client()    
+    return _query_sql_sub(client=client, sql=sql, limit=limit)
+
+
+@mcp.tool()
+def get_records(table_name: str, limit: int = 10) -> list[dict]:
     """Fetch raw JSON records from a given table."""
     logger.info(f"Getting records from {table_name}")
-    client = create_kinetica_client()
-    try:
-        json_str = client.get_records_json(table_name, limit=limit)
-        data = json.loads(json_str)
-        return data.get("data", {}).get("records", [])
-    
-    except Exception as e:
-        raise ToolError(f"Record fetch failed: {str(e)}")
+    client = _create_kinetica_client()
+    return _query_sql_sub(client=client, sql=f"SELECT * FROM {table_name}", limit=limit)
 
 
 @mcp.tool()
-def insert_records(table_name: str, records: list[dict]) -> dict:
+def insert_records(table_name: str, records: list[dict]) -> int:
     """Insert records into a specified table."""
     logger.info(f"Inserting into table {table_name}")
-    client = create_kinetica_client()
+    client = _create_kinetica_client()
 
     try:
         result_table = GPUdbTable(name=table_name, db=client)
         orig_size = result_table.size()
         result_table.insert_records(records)
         new_size = result_table.size() - orig_size
-        return { 'count_inserted': new_size }
+        return new_size
 
     except Exception as e:
         raise ToolError(f"Insertion failed: {str(e)}")
 
 
-class MCPTableMonitor(Monitor.Client):
+class _MCPTableMonitor(Monitor.Client):
     def __init__(self, db: GPUdb, table_name: str):
         self._logger = logging.getLogger("TableMonitor")
         self._logger.setLevel(logger.level)
@@ -188,9 +182,9 @@ def start_table_monitor(table: str) -> str:
     if table in active_monitors:
         return f"Monitor already running for table '{table}'"
 
-    db = create_kinetica_client()
+    db = _create_kinetica_client()
 
-    monitor = MCPTableMonitor(db, table)
+    monitor = _MCPTableMonitor(db, table)
     monitor.start_monitor()
 
     active_monitors[table] = monitor
@@ -215,7 +209,7 @@ def get_sql_context(context_name: str) -> dict[str, Union[str, list[str], dict[s
     Returns a structured, AI-readable summary of a Kinetica SQL-GPT context.
     Extracts the table, comment, rules, and comments block (if any) from the context definition.
     """
-    db = create_kinetica_client()
+    db = _create_kinetica_client()
     try:
         sql = f'SHOW CONTEXT "{context_name}"'
         result = db.execute_sql(sql, encoding='json')

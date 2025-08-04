@@ -1,13 +1,13 @@
-import gpudb
 import pytest
 import pytest_asyncio
-from fastmcp import Client
-from mcp_kinetica.server import mcp
 import json
 import logging
 import pandas as pd
 from gpudb import GPUdb, GPUdbTable
+from fastmcp import Client
 from fastmcp.exceptions import ToolError
+
+from mcp_kinetica.server import mcp
 
 LOG = logging.getLogger(__name__)
 
@@ -98,7 +98,8 @@ async def test_insert_records(client: Client):
     })
 
     LOG.info(f"Insert result: {result.structured_content}")
-    assert result.structured_content["count_inserted"] == len(unique_records)
+    result_count = result.structured_content['result']
+    assert result_count == len(unique_records)
 
 
 @pytest.mark.asyncio
@@ -109,7 +110,7 @@ async def test_query_sql_success(client: Client):
         "sql": f"SELECT * FROM {TABLE} where user_id <= 2"
     })
 
-    records = query_result.structured_content['records']
+    records = query_result.structured_content['result']
     LOG.info(f"Result records: {records}")
     first_rec = records[0]
 
