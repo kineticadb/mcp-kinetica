@@ -1,6 +1,5 @@
 import json
 from math import log
-from math import log
 from dotenv import load_dotenv
 from typing import Dict, List, Union
 import re
@@ -54,7 +53,6 @@ def kinetica_sql_prompt() -> str:
 
 
 def create_kinetica_client() -> GPUdb:
-def create_kinetica_client() -> GPUdb:
     """Create and return a GPUdb client instance using env variables."""
     return GPUdb.get_connection(logging_level=logger.level)
 
@@ -69,8 +67,6 @@ def list_tables(schema = "*") -> list[str]:
 
 
 @mcp.tool()
-def describe_table(table_name: str) -> dict[str, str]:
-    """Return a dictionary of column name to column type."""
 def describe_table(table_name: str) -> dict[str, str]:
     """Return a dictionary of column name to column type."""
     logger.info(f"Describing table: {table_name}")
