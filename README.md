@@ -46,7 +46,7 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
 
 - `describe_table(table_name: str)`
 
-    Show metadata and type schema for a specific table.
+    Return a dictionary of column name to column type.
 
 - `query_sql(sql: str)`
 

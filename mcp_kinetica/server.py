@@ -1,4 +1,5 @@
 import json
+from math import log
 from dotenv import load_dotenv
 from typing import Dict, List, Union
 import re
@@ -51,7 +52,7 @@ def kinetica_sql_prompt() -> str:
         return f.read()
 
 
-def create_kinetica_client():
+def create_kinetica_client() -> GPUdb:
     """Create and return a GPUdb client instance using env variables."""
     return GPUdb.get_connection(logging_level=logger.level)
 
@@ -66,30 +67,35 @@ def list_tables(schema = "*") -> list[str]:
 
 
 @mcp.tool()
-def describe_table(table_name: str) -> dict:
-    """Describe a specific table including type schema and properties."""
+def describe_table(table_name: str) -> dict[str, str]:
+    """Return a dictionary of column name to column type."""
     logger.info(f"Describing table: {table_name}")
     client = create_kinetica_client()
 
     try:
-        # Ensure we only fetch info about the table, not the schema's children
-        table_info = client.show_table(table_name, options={"show_children": "false"})
+        result_rows = client.query(f"describe {table_name}")
+        result_dict = {}
+        for row in result_rows:
+            result_dict[row[1]] = row[3]
+        return result_dict
+        # # Ensure we only fetch info about the table, not the schema's children
+        # table_info = client.show_table(table_name, options={"show_children": "false"})
 
-        type_ids = table_info.get("type_ids")
-        if not type_ids:
-            return {
-                "table_info": table_info,
-                "type_info": {},
-                "warning": "No type_ids found — possibly a schema or unsupported table type."
-            }
+        # type_ids = table_info.get("type_ids")
+        # if not type_ids:
+        #     return {
+        #         "table_info": table_info,
+        #         "type_info": {},
+        #         "warning": "No type_ids found — possibly a schema or unsupported table type."
+        #     }
 
-        type_id = type_ids[0]
-        type_detail = client.show_types(type_id=type_id, label="")
+        # type_id = type_ids[0]
+        # type_detail = client.show_types(type_id=type_id, label="")
 
-        return {
-            "table_info": table_info,
-            "type_info": type_detail
-        }
+        # return {
+        #     "table_info": table_info,
+        #     "type_info": type_detail
+        # }
     except Exception as e:
         logger.error(f"Failed to describe table: {str(e)}")
         return {"error": str(e)}

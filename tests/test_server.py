@@ -8,7 +8,7 @@ import logging
 LOG = logging.getLogger(__name__)
 
 SCHEMA = "ki_home"
-TABLE = f"{SCHEMA}.sample"
+TABLE = f"{SCHEMA}.taxi_data"
 
 @pytest_asyncio.fixture
 async def client():
@@ -20,7 +20,10 @@ async def client():
 
 @pytest.mark.asyncio
 async def test_list_tables(client: Client):
-    result = await client.call_tool(name="list_tables", arguments={"schema": "demo"})
+    result = await client.call_tool(
+        name="list_tables", 
+        arguments={"schema": SCHEMA}
+    )
     tables = result.data
     LOG.info(f"Tables: {tables}")
     assert isinstance(tables, list)
@@ -28,16 +31,10 @@ async def test_list_tables(client: Client):
 
 @pytest.mark.asyncio
 async def test_describe_table(client: Client):
-    result = await client.call_tool("describe_table", {"table_name": TABLE})
-
-    if isinstance(result, list) and hasattr(result[0], "text"):
-        data = json.loads(result[0].text)
-    else:
-        raise TypeError("Expected a list with a TextContent object containing `.text`")
-
+    result = await client.call_tool(name="describe_table", arguments={"table_name": TABLE})
+    data = result.data
+    LOG.info(f"Table info: {result.data}")
     assert isinstance(data, dict)
-    assert "table_info" in data
-    assert data["table_info"]["table_name"] == TABLE
 
 
 @pytest.mark.asyncio
