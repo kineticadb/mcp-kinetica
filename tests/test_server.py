@@ -1,14 +1,17 @@
+import gpudb
 import pytest
 import pytest_asyncio
 from fastmcp import Client
 from mcp_kinetica.server import mcp
 import json
 import logging
+import pandas as pd
+from gpudb import GPUdb, GPUdbTable
 
 LOG = logging.getLogger(__name__)
 
 SCHEMA = "ki_home"
-TABLE = f"{SCHEMA}.taxi_data"
+TABLE = f"{SCHEMA}.mcp_test_users"
 
 @pytest_asyncio.fixture
 async def client():
@@ -18,13 +21,29 @@ async def client():
         yield mcp_client
 
 
+def test_create_test_table():
+    expected_users = {
+        (1, "Alice", "alice@example.com"),
+        (2, "Bob", "bob@example.com")
+    }
+    df = pd.DataFrame(expected_users, columns=['user_id', 'name', 'email'])
+
+    LOG.info(f"Creating test table {TABLE} with data:\n{df}")
+    dbc = GPUdb.get_connection()
+    gpudb_table = GPUdbTable.from_df(df, db=dbc, 
+                                table_name=TABLE, 
+                                clear_table=True)
+    type_df = gpudb_table.type_as_df()
+    LOG.info(f"Created table {TABLE} with types:\n{type_df}")
+
+
 @pytest.mark.asyncio
 async def test_list_tables(client: Client):
     result = await client.call_tool(
         name="list_tables", 
         arguments={"schema": SCHEMA}
     )
-    tables = result.data
+    tables = result.structured_content['result']
     LOG.info(f"Tables: {tables}")
     assert isinstance(tables, list)
 
@@ -32,20 +51,16 @@ async def test_list_tables(client: Client):
 @pytest.mark.asyncio
 async def test_describe_table(client: Client):
     result = await client.call_tool(name="describe_table", arguments={"table_name": TABLE})
-    data = result.data
-    LOG.info(f"Table info: {result.data}")
-    assert isinstance(data, dict)
+    table_columns = result.structured_content
+    LOG.info(f"Table info: {table_columns}")
+    assert isinstance(table_columns, dict)
 
 
 @pytest.mark.asyncio
 async def test_get_records(client: Client):
     """Verify that known sample records exist in the table."""
     result = await client.call_tool("get_records", {"table_name": TABLE})
-
-    if isinstance(result, list) and hasattr(result[0], "text"):
-        records = json.loads(result[0].text)
-    else:
-        raise TypeError(f"Unexpected result format: {result}")
+    records = result.structured_content['result']
 
     # Check that at least 2 records exist
     assert isinstance(records, list)
