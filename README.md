@@ -56,9 +56,9 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
 
     Fetch raw records from a table as a list of dictionaries.
 
-- `insert_json(table_name: str, records: list[dict])`
+- `insert_records(table_name: str, records: list[dict])`
 
-    Insert a list of JSON records into the specified table.
+    Insert a list of records into the specified table.
 
 - `start_table_monitor(table: str)`
 

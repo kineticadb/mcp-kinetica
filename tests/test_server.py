@@ -7,6 +7,7 @@ import json
 import logging
 import pandas as pd
 from gpudb import GPUdb, GPUdbTable
+from fastmcp.exceptions import ToolError
 
 LOG = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ def test_create_test_table():
     dbc = GPUdb.get_connection()
     gpudb_table = GPUdbTable.from_df(df, db=dbc, 
                                 table_name=TABLE, 
+                                column_types = { 'name': 'char16' },
                                 clear_table=True)
     type_df = gpudb_table.type_as_df()
     LOG.info(f"Created table {TABLE} with types:\n{type_df}")
@@ -80,77 +82,51 @@ async def test_get_records(client: Client):
     for user in expected_users:
         assert user in actual_users
 
+
 @pytest.mark.asyncio
-async def test_query_sql_success(client: Client):
-    """Insert unique rows and verify they appear in SELECT query."""
+async def test_insert_records(client: Client):
+    """Insert unique rows """
     unique_records = [
         {"user_id": 5001, "name": "TempUserA", "email": "a@temp.com"},
         {"user_id": 5002, "name": "TempUserB", "email": "b@temp.com"},
     ]
 
     # Insert the unique records
-    insert_result = await client.call_tool("insert_json", {
+    result = await client.call_tool("insert_records", {
         "table_name": TABLE,
         "records": unique_records
     })
 
-    if isinstance(insert_result, list) and hasattr(insert_result[0], "text"):
-        insert_data = json.loads(insert_result[0].text)
-    else:
-        raise TypeError(f"Unexpected insert result format: {insert_result}")
+    LOG.info(f"Insert result: {result.structured_content}")
+    assert result.structured_content["count_inserted"] == len(unique_records)
 
-    assert "data" in insert_data
-    assert insert_data["data"]["count_inserted"] == len(unique_records)
 
+@pytest.mark.asyncio
+async def test_query_sql_success(client: Client):
+    """Verify that a valid SQL query returns expected results."""
     # Query the table
     query_result = await client.call_tool("query_sql", {
-        "sql": f"SELECT * FROM {TABLE}"
+        "sql": f"SELECT * FROM {TABLE} where user_id <= 2"
     })
 
-    if isinstance(query_result, list) and hasattr(query_result[0], "text"):
-        parsed = json.loads(query_result[0].text)
-    else:
-        raise TypeError(f"Unexpected query result format: {query_result}")
+    records = query_result.structured_content['records']
+    LOG.info(f"Result records: {records}")
+    first_rec = records[0]
 
-    assert "column_1" in parsed
-    assert "column_headers" in parsed
+    assert len(records) == 2
+    assert "user_id" in first_rec.keys()
 
-    user_ids = parsed["column_1"]
-    assert 5001 in user_ids
-    assert 5002 in user_ids
 
 @pytest.mark.asyncio
 async def test_query_sql_failure(client: Client):
     """Ensure failed queries return structured error."""
-    result = await client.call_tool("query_sql", {
-        "sql": "SELECT * FROM nonexistent_table_xyz"
-    })
+    with pytest.raises(ToolError):
+        result = await client.call_tool("query_sql", {
+            "sql": "SELECT * FROM nonexistent_table_xyz"
+        })
+        LOG.info(f"Query error result: {result.structured_content}")
 
-    if isinstance(result, list) and hasattr(result[0], "text"):
-        parsed = json.loads(result[0].text)
-    else:
-        raise TypeError(f"Unexpected result format: {result}")
 
-    assert "error" in parsed
-
-@pytest.mark.asyncio
-async def test_insert_json_isolated(client):
-    """Verify insert_json handles valid payload and returns count."""
-    new_record = [{"user_id": 9999, "name": "Charlie", "email": "charlie@example.com"}]
-    
-    result = await client.call_tool("insert_json", {
-        "table_name": TABLE,
-        "records": new_record
-    })
-
-    if isinstance(result, list) and hasattr(result[0], "text"):
-        parsed = json.loads(result[0].text)
-    else:
-        raise TypeError(f"Unexpected result format: {result}")
-
-    assert "data" in parsed
-    assert "count_inserted" in parsed["data"]
-    assert parsed["data"]["count_inserted"] >= 1
 
 @pytest.mark.asyncio
 async def test_get_sql_context(client: Client):
