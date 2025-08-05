@@ -14,7 +14,6 @@
 - [Overview](#overview)
   - [Tools](#tools)
   - [Resources](#resources)
-  - [Prerequisites](#prerequisites)
 - [Integrate with Claude Desktop](#integrate-with-claude-desktop)
 - [Test with MCP Inspector](#test-with-mcp-inspector)
 - [Test with Pytest](#test-with-pytest)
@@ -67,17 +66,10 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
   - `rules`: List of defined semantic rules.
   - `samples`: One shot training examples.
 
-### Prerequisites
-
-The Kinetica MCP server requires the following component versions:
-
-- Python >= 3.10
-- Node.js >= 18
-
 ## Integrate with Claude Desktop
 
 In this example we will invoke the `uv run` command to install the `mcp-kinetica` package automatically when
-Claude desktop starts. For this to work we will use uv to create a virtual environment with python 3.12 that
+Claude desktop starts. For this to work we will use uv to create a virtual environment with python >=3.10 that
 will be used by the mcp runtime.
 
 If you have not already downloaded Claude desktop you can get it at <https://claude.ai/download>.
@@ -153,7 +145,7 @@ If you have not already downloaded Claude desktop you can get it at <https://cla
 ## Test with MCP Inspector
 
 The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is a web UI used for exploring the features of
-an MCP Service and simulating the activities of an LLM model.
+an MCP Service and simulating the activities of an LLM model. You will need Node.js >= 18 for the inspector.
 
 1. Clone the GitHub project:
 
@@ -221,7 +213,7 @@ an MCP Service and simulating the activities of an LLM model.
 
 ## Test with Pytest
 
-This section describes how to run the test suite under `tests/test_server.py`. 
+This section describes how to run the test suite under `tests/test_server.py`.
 
 > **Note:** The `uv` utility is not required.
 
