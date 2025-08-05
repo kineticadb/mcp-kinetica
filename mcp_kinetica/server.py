@@ -55,7 +55,7 @@ def _create_kinetica_connection() -> GPUdb:
 
 
 @mcp.tool()
-def list_tables(schema = "*") -> list[str]:
+def list_tables(schema: str = "*") -> list[str]:
     """List all available tables, views, and schemas in the database."""
     logger.info("Fetching all tables, views, and schemas")
     dbc = _create_kinetica_connection()
