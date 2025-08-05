@@ -16,11 +16,7 @@
   - [Resources](#resources)
 - [Prerequisites](#prerequisites)
 - [Integrate with Claude Desktop](#integrate-with-claude-desktop)
-  - [mcp-kinetica Package Installation](#mcp-kinetica-package-installation)
-    - [MCP via PIP](#mcp-via-pip)
-    - [MCP via UV](#mcp-via-uv)
-  - [claude\_desktop\_config.json Updates](#claude_desktop_configjson-updates)
-- [Running MCP Inspector](#running-mcp-inspector)
+- [Test with MCP Inspector](#test-with-mcp-inspector)
 - [Testing](#testing)
 - [Support](#support)
 - [Contact Us](#contact-us)
@@ -74,51 +70,68 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
 
 The Kinetica MCP server requires the following component versions:
 
-- Python 3.10
-- Node.js 18
+- Python >= 3.10
+- Node.js >= 18
 
 ## Integrate with Claude Desktop
 
-### mcp-kinetica Package Installation
+In this example we will invoke the `uv run` command to install the `mcp-kinetica` package automatically when
+Claude desktop starts. For this to work we will use uv to create a virtual environment with python 3.12 that
+will be used by the mcp runtime.
 
-The Kinetica MCP server can be installed with one of the following:
+If you have not already downloaded Claude desktop you can get it at <https://claude.ai/download>.
 
-- [Python PIP](#mcp-via-pip)
-- [UV](#mcp-via-uv)
+> Note: As an alternative you could install the `mcp-kinetica` with pip and avoid using UV but it is recommended
+> in the fastmcp documentation.
 
-#### MCP via PIP
+1. Make sure you have UV installed.
 
-```env
-pip3 install mcp-kinetica
-```
+    ```bash
+    pip install --upgrade uv 
+    ```
 
-#### MCP via UV
+2. Create the python virtual environment.
 
-```env
-pip3 install uv
-uv pip install mcp-kinetica
-```
+    You must choose a directory `<your_venv_path>` for the python runtime.
 
-### claude_desktop_config.json Updates
+    ```bash
+    uv venv --python 3.12 <your_venv_path>
+    ```
 
-1. Open your Claude Desktop configuration file:
+3. Make a note of the `python` and `uv` paths.
+
+    UV and your VENV could be using different python interpreters. Make a note of these paths and save them for
+    the claude config file.
+
+    > Note: Windows users should activate with `<your_venv_path>/bin/activate.bat`
+
+    ```bash
+    $ source <your_venv_path>/bin/activate
+    $ which uv
+    <uv_exe_path>
+    $ which python
+    <python_exe_path>
+    ```
+
+4. Open your Claude Desktop configuration file:
 
     - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
     - **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
 
-2. Add an `mcp-kinetica` entry to the `mcpServers` block:
+5. Add an `mcp-kinetica` entry to the `mcpServers` block:
+
+    You will need to edit the `<uv_exe_path>`, `<python_exe_path>`, and Kinetica connection info.
 
     ```json
     {
       "mcpServers": {
         "mcp-kinetica": {
-          "command": "uv",
+          "command": "<uv_exe_path>",
           "args": [
             "run",
-            "--with",
-            "setuptools",
-            "--with",
-            "mcp-kinetica",
+            "--python", "<python_exe_path>",
+            "--with", "setuptools",
+            "--with", "mcp-kinetica",
             "mcp-kinetica"
           ],
           "env": {
@@ -132,14 +145,14 @@ uv pip install mcp-kinetica
     }
     ```
 
-3. Update the environment variable values as needed for your Kinetica instance.
+6. Restart Claude Desktop to apply the changes.
 
-4. Restart Claude Desktop to apply the changes.
+    In Claude Desktop open *Settings->Connectors* and look for an entry named mcp-kinetica.
 
-## Running MCP Inspector
+## Test with MCP Inspector
 
-The MCP Inspector is a web UI used for exploring and testing the features of an MCP Service. It is only for testing
-and simulates the activities of an LLM model.
+The MCP Inspector is a web UI used for exploring the features of an MCP Service and simulating the activities of
+an LLM model.
 
 1. Clone the GitHub project:
 
