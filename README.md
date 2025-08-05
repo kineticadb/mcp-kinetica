@@ -69,8 +69,8 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
 ## Integrate with Claude Desktop
 
 In this example we will invoke the `uv run` command to install the `mcp-kinetica` package automatically when
-Claude desktop starts. For this to work we will use uv to create a virtual environment with python >=3.10 that
-will be used by the mcp runtime.
+Claude desktop starts. For this to work we will use `uv` to create a virtual environment with `python` >=3.10 that
+will be used by the MCP runtime.
 
 If you have not already downloaded Claude desktop you can get it at <https://claude.ai/download>.
 
