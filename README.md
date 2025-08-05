@@ -198,16 +198,18 @@ and simulates the activities of an LLM model.
     MCP Inspector is up and running at http://127.0.0.1:6274
     ```
 
-**Note:** MCP inspector will default to `uv` as the command to run.  If not
-using `uv` for package management, the MCP Inspector parameters can be updated
-as follows:
-
-- *Command*:  `python3`
-- *Arguments*:  `mcp_kinetica/server.py`
+> **Note:** MCP inspector will default to `uv` as the command to run.  If not
+> using `uv` for package management, the MCP Inspector parameters can be updated
+> as follows:
+>
+> - *Command*:  `python3`
+> - *Arguments*:  `mcp_kinetica/server.py`
 
 ## Testing
 
-This section describes how to run the test suite under `tests/test_server.py`.
+This section describes how to run the test suite under `tests/test_server.py`. 
+
+> **Note:** The `uv` utility is not required.
 
 1. Clone the GitHub project:
 

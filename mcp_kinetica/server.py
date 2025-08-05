@@ -1,19 +1,18 @@
+##
+# Copyright (c) 2025, Kinetica DB Inc.
+##
+
 from dotenv import load_dotenv
 from typing import Union
 import logging
 import os
 from importlib import resources as impresources
-from collections import deque
-
 from fastmcp import FastMCP
 import fastmcp.settings as fastmcp_settings
 from fastmcp.exceptions import ToolError
+from gpudb import GPUdb, GPUdbTable
 
-from gpudb import ( 
-    GPUdb,
-    GPUdbTableMonitor as Monitor,
-    GPUdbTable
-)
+from .table_monitor import MCPTableMonitor
 
 # Load environment variables
 load_dotenv()
@@ -129,49 +128,6 @@ def insert_records(table_name: str, records: list[dict]) -> int:
         raise ToolError(f"Insertion failed: {str(e)}")
 
 
-class _MCPTableMonitor(Monitor.Client):
-    def __init__(self, dbc: GPUdb, table_name: str):
-        self._logger = logging.getLogger("TableMonitor")
-        self._logger.setLevel(logger.level)
-        self.recent_inserts = deque(maxlen=50)  # Stores last 50 inserts
-
-        callbacks = [
-            Monitor.Callback(
-                Monitor.Callback.Type.INSERT_DECODED,
-                self.on_insert,
-                self.on_error,
-                Monitor.Callback.InsertDecodedOptions(
-                    Monitor.Callback.InsertDecodedOptions.DecodeFailureMode.SKIP
-                )
-            ),
-            Monitor.Callback(
-                Monitor.Callback.Type.UPDATED,
-                self.on_update,
-                self.on_error
-            ),
-            Monitor.Callback(
-                Monitor.Callback.Type.DELETED,
-                self.on_delete,
-                self.on_error
-            )
-        ]
-
-        super().__init__(dbc, table_name, callback_list=callbacks)
-
-    def on_insert(self, record: dict):
-        self.recent_inserts.appendleft(record)
-        self._logger.info(f"[INSERT] New record: {record}")
-
-    def on_update(self, count: int):
-        self._logger.info(f"[UPDATE] {count} rows updated")
-
-    def on_delete(self, count: int):
-        self._logger.info(f"[DELETE] {count} rows deleted")
-
-    def on_error(self, message: str):
-        self._logger.error(f"[ERROR] {message}")
-
-
 @mcp.tool()
 def start_table_monitor(table: str) -> str:
     """
@@ -182,7 +138,7 @@ def start_table_monitor(table: str) -> str:
 
     dbc = _create_kinetica_connection()
 
-    monitor = _MCPTableMonitor(dbc, table)
+    monitor = MCPTableMonitor(dbc, table)
     monitor.start_monitor()
 
     active_monitors[table] = monitor
