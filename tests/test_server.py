@@ -128,18 +128,34 @@ async def test_query_sql_failure(client: Client):
         LOG.info(f"Query error result: {result.structured_content}")
 
 
+def test_create_context():
+    context_sql = """
+    CREATE or replace CONTEXT "demo"."mcp_ctx"
+    (TABLE = "ki_home"."mcp_test_users",
+        COMMENT = 'This is a test',
+        RULES = ('Test table rule','Test table rule '' with quote'),
+        COMMENTS = ('email' = 'email column',
+        'name' = 'user name')),
+    (SAMPLES = ('How many users are there?' = 'select count(1) from ki_home.mcp_test_users',
+        'What are all the users?' = 'select * from ki_home.mcp_test_users')),
+    (RULES = ('Test context rule.','Test context  rule '' with quote'))
+    """
+
+    dbc = GPUdb.get_connection()
+    dbc.execute(context_sql)
+
 
 @pytest.mark.asyncio
 async def test_get_sql_context(client: Client):
-    context_name = "kgraph_ctx"
-    raw = await client.read_resource(f"sql-context://{context_name}")
+    context_name = "demo.mcp_ctx"
+    result = await client.read_resource(f"sql-context://{context_name}")
+    context = json.loads(result[0].text)
 
-    assert isinstance(raw, list) and hasattr(raw[0], "text"), f"Unexpected result format: {raw}"
-
-    context = json.loads(raw[0].text)
+    ctx_formatted = json.dumps(context, indent=4)
+    LOG.info(f"SQL context result: {ctx_formatted}")
 
     assert isinstance(context, dict)
     assert context.get("context_name") == context_name
-    assert "table" in context
-    assert "comment" in context
+    assert "tables" in context
+    assert "samples" in context
     assert "rules" in context and isinstance(context["rules"], list)

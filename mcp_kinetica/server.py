@@ -1,7 +1,5 @@
-import json
 from dotenv import load_dotenv
 from typing import Union
-import re
 import logging
 import os
 from importlib import resources as impresources
@@ -51,7 +49,7 @@ def kinetica_sql_prompt() -> str:
         return f.read()
 
 
-def _create_kinetica_client() -> GPUdb:
+def _create_kinetica_connection() -> GPUdb:
     """Create and return a GPUdb client instance using env variables."""
     return GPUdb.get_connection(logging_level=logger.level)
 
@@ -60,10 +58,10 @@ def _create_kinetica_client() -> GPUdb:
 def list_tables(schema = "*") -> list[str]:
     """List all available tables, views, and schemas in the database."""
     logger.info("Fetching all tables, views, and schemas")
-    client = _create_kinetica_client()
+    dbc = _create_kinetica_connection()
 
     try:
-        response = client.show_table(schema, options={"show_children": "true"})
+        response = dbc.show_table(schema, options={"show_children": "true"})
         return sorted(response.get("table_names", []))
     
     except Exception as e:
@@ -74,10 +72,10 @@ def list_tables(schema = "*") -> list[str]:
 def describe_table(table_name: str) -> dict[str, str]:
     """Return a dictionary of column name to column type."""
     logger.info(f"Describing table: {table_name}")
-    client = _create_kinetica_client()
+    dbc = _create_kinetica_connection()
 
     try:
-        result_rows = client.query(f"describe {table_name}")
+        result_rows = dbc.query(f"describe {table_name}")
         result_dict = {}
         for row in result_rows:
             result_dict[row[1]] = row[3]
@@ -87,8 +85,8 @@ def describe_table(table_name: str) -> dict[str, str]:
         raise ToolError(f"Failed to describe table '{table_name}': {str(e)}")
 
 
-def _query_sql_sub(client: GPUdb, sql: str, limit: int = 10) -> list[dict]:
-    response = client.execute_sql_and_decode(statement=sql, limit=limit, 
+def _query_sql_sub(dbc: GPUdb, sql: str, limit: int = 10) -> list[dict]:
+    response = dbc.execute_sql_and_decode(statement=sql, limit=limit, 
                                                 get_column_major=False)
     status_info = response.status_info
     if(status_info['status'] != 'OK'):
@@ -102,26 +100,26 @@ def _query_sql_sub(client: GPUdb, sql: str, limit: int = 10) -> list[dict]:
 def query_sql(sql: str, limit: int = 10) -> list[dict]:
     """Run a safe SQL query on the Kinetica database."""
     logger.info(f"Executing SQL: {sql}")
-    client = _create_kinetica_client()    
-    return _query_sql_sub(client=client, sql=sql, limit=limit)
+    dbc = _create_kinetica_connection()    
+    return _query_sql_sub(dbc=dbc, sql=sql, limit=limit)
 
 
 @mcp.tool()
 def get_records(table_name: str, limit: int = 10) -> list[dict]:
     """Fetch raw JSON records from a given table."""
     logger.info(f"Getting records from {table_name}")
-    client = _create_kinetica_client()
-    return _query_sql_sub(client=client, sql=f"SELECT * FROM {table_name}", limit=limit)
+    dbc = _create_kinetica_connection()
+    return _query_sql_sub(dbc=dbc, sql=f"SELECT * FROM {table_name}", limit=limit)
 
 
 @mcp.tool()
 def insert_records(table_name: str, records: list[dict]) -> int:
     """Insert records into a specified table."""
     logger.info(f"Inserting into table {table_name}")
-    client = _create_kinetica_client()
+    dbc = _create_kinetica_connection()
 
     try:
-        result_table = GPUdbTable(name=table_name, db=client)
+        result_table = GPUdbTable(name=table_name, db=dbc)
         orig_size = result_table.size()
         result_table.insert_records(records)
         new_size = result_table.size() - orig_size
@@ -132,7 +130,7 @@ def insert_records(table_name: str, records: list[dict]) -> int:
 
 
 class _MCPTableMonitor(Monitor.Client):
-    def __init__(self, db: GPUdb, table_name: str):
+    def __init__(self, dbc: GPUdb, table_name: str):
         self._logger = logging.getLogger("TableMonitor")
         self._logger.setLevel(logger.level)
         self.recent_inserts = deque(maxlen=50)  # Stores last 50 inserts
@@ -158,7 +156,7 @@ class _MCPTableMonitor(Monitor.Client):
             )
         ]
 
-        super().__init__(db, table_name, callback_list=callbacks)
+        super().__init__(dbc, table_name, callback_list=callbacks)
 
     def on_insert(self, record: dict):
         self.recent_inserts.appendleft(record)
@@ -182,9 +180,9 @@ def start_table_monitor(table: str) -> str:
     if table in active_monitors:
         return f"Monitor already running for table '{table}'"
 
-    db = _create_kinetica_client()
+    dbc = _create_kinetica_connection()
 
-    monitor = _MCPTableMonitor(db, table)
+    monitor = _MCPTableMonitor(dbc, table)
     monitor.start_monitor()
 
     active_monitors[table] = monitor
@@ -199,59 +197,86 @@ def get_recent_inserts(table: str) -> list[dict]:
     """
     monitor = active_monitors.get(table)
     if monitor is None:
-        return [{"error": f"No monitor found for table '{table}'."}]
+        raise ToolError(f"No monitor found for table '{table}'.")
 
     return list(monitor.recent_inserts)
 
+
+def _unquote(text: str) -> str:
+    """Remove surrounding single quotes and unescape internal quotes."""
+    result = text.strip()
+    result = result.strip("'")
+    result = result.replace("''", "'")
+    return result
+
+
+def _parse_list(text: str) -> list[str]:
+    """Parse rules from a RULES string, handling escaped single quotes."""
+    rules_list = []
+
+    for rule in text.split(','):
+        rule = _unquote(rule)
+        rules_list.append(rule)
+
+    return rules_list
+
+
+def _parse_dict(text: str) -> dict[str, str]:
+    """Parse a dictionary-like string of key=value pairs, handling escaped single quotes."""
+    result = {}
+    for pair in text.split(','):
+        if '=' in pair:
+            key, value = pair.split('=', 1)
+            key = _unquote(key)
+            value = _unquote(value)
+            result[key] = value
+    return result
+
+
 @mcp.resource("sql-context://{context_name}")
-def get_sql_context(context_name: str) -> dict[str, Union[str, list[str], dict[str, str]]]:
+def get_sql_context(context_name: str) -> dict[str, Union[str, list, dict]]:
     """
     Returns a structured, AI-readable summary of a Kinetica SQL-GPT context.
     Extracts the table, comment, rules, and comments block (if any) from the context definition.
     """
-    db = _create_kinetica_client()
-    try:
-        sql = f'SHOW CONTEXT "{context_name}"'
-        result = db.execute_sql(sql, encoding='json')
-        raw_json = result.get("json_encoded_response", "{}")
-        records = json.loads(raw_json)
-        context_sql = records.get("column_1", [""])[0]
 
-        parsed = {
-            "context_name": context_name,
-            "table": None,
-            "comment": None,
-            "rules": [],
-            "column_comments": {}
-        }
+    dbc = _create_kinetica_connection()
+    sql = f'DESCRIBE CONTEXT {context_name}'
+    records = _query_sql_sub(dbc=dbc, sql=sql, limit=100)
 
-        # TABLE = "schema"."table"
-        table_match = re.search(r'TABLE\s*=\s*"([^"]+)"\."([^"]+)"', context_sql)
-        if table_match:
-            parsed["table"] = f'{table_match.group(1)}.{table_match.group(2)}'
+    tables_list = []
+    samples_dict = []
+    rules_list = []
 
-        # COMMENT = '...'
-        comment_match = re.search(r'COMMENT\s*=\s*\'((?:[^\']|\\\')*)\'', context_sql, re.DOTALL)
-        if comment_match:
-            parsed["comment"] = comment_match.group(1).strip()
+    for row in records:
+        object_name = row['OBJECT_NAME']
+        object_name = object_name.replace('"', '')
 
-        # RULES = ('...', '...')
-        rules_match = re.search(r'RULES\s*=\s*\((.*?)\)', context_sql, re.DOTALL)
-        if rules_match:
-            raw_rules = rules_match.group(1)
-            rules = re.findall(r"'(.*?)'", raw_rules, re.DOTALL)
-            parsed["rules"] = [r.strip() for r in rules]
+        if(object_name == 'samples'):
+            samples_dict = _parse_dict(row['OBJECT_SAMPLES'])
 
-        # COMMENTS = ('col' = 'desc', ...)
-        comments_match = re.search(r'COMMENTS\s*=\s*\((.*?)\)\s*\)', context_sql, re.DOTALL)
-        if comments_match:
-            comments_block = comments_match.group(1)
-            comment_pairs = re.findall(r"'([^']+)'\s*=\s*'([^']+)'", comments_block)
-            parsed["column_comments"] = {k: v.strip() for k, v in comment_pairs}
+        elif(object_name == 'rules'):
+            rules_text = row['OBJECT_RULES']
+            rules_list.append(_parse_list(rules_text))
 
-        return parsed
-    except Exception as e:
-        return {"error": str(e), "context_name": context_name}
+        else:
+            # object is a table
+            table_rules_list = _parse_list(row['OBJECT_RULES'])
+            comments_dict = _parse_dict(row['OBJECT_COMMENTS'])
+
+            tables_list.append({
+                'name': object_name,
+                'description': row['OBJECT_DESCRIPTION'],
+                'rules': table_rules_list,
+                'column_comments': comments_dict
+            })
+
+    return {
+        'context_name': context_name,
+        'tables': tables_list,
+        'samples': samples_dict,
+        'rules': rules_list
+    }
 
 
 def main():
