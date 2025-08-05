@@ -14,12 +14,13 @@
 - [Overview](#overview)
   - [Tools](#tools)
   - [Resources](#resources)
-- [Prerequisites](#prerequisites)
+  - [Prerequisites](#prerequisites)
 - [Integrate with Claude Desktop](#integrate-with-claude-desktop)
 - [Test with MCP Inspector](#test-with-mcp-inspector)
-- [Testing](#testing)
+- [Test with Pytest](#test-with-pytest)
 - [Support](#support)
 - [Contact Us](#contact-us)
+- [References](#references)
 
 ## Overview
 
@@ -66,7 +67,7 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
   - `rules`: List of defined semantic rules.
   - `samples`: One shot training examples.
 
-## Prerequisites
+### Prerequisites
 
 The Kinetica MCP server requires the following component versions:
 
@@ -151,8 +152,8 @@ If you have not already downloaded Claude desktop you can get it at <https://cla
 
 ## Test with MCP Inspector
 
-The MCP Inspector is a web UI used for exploring the features of an MCP Service and simulating the activities of
-an LLM model.
+The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is a web UI used for exploring the features of
+an MCP Service and simulating the activities of an LLM model.
 
 1. Clone the GitHub project:
 
@@ -218,7 +219,7 @@ an LLM model.
 > - *Command*:  `python3`
 > - *Arguments*:  `mcp_kinetica/server.py`
 
-## Testing
+## Test with Pytest
 
 This section describes how to run the test suite under `tests/test_server.py`. 
 
@@ -279,3 +280,11 @@ For support, you can post on
   [Follow @kineticadb](https://github.com/kineticadb)
 - Email us:  <support@kinetica.com>
 - Visit:  <https://www.kinetica.com/contact/>
+
+## References
+
+- [Real-Time Geospatial Queries with MCP + Kinetica](https://www.kinetica.com/blog/real-time-geospatial-queries-with-mcp-kinetica/)
+- [Access FSQ OS Places](https://docs.foursquare.com/data-products/docs/access-fsq-os-places)
+- [UV Introduction](https://docs.astral.sh/uv/)
+- [FastMCP Documentation](https://gofastmcp.com/getting-started/welcome)
+- [Kinetica Python DEV Guide](https://github.com/kineticadb/examples/tree/master/python_dev_guide)
