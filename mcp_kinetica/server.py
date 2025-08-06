@@ -5,13 +5,15 @@
 from dotenv import load_dotenv
 import logging
 import os
+import argparse
+import asyncio
 
 from fastmcp import FastMCP
 import fastmcp.settings
 
-from .table_monitor import add_monitor_tools
-from .sql_context import add_sql_context_resource
-from .table_tools import add_table_tools
+from mcp_kinetica.table_monitor import mcp as mcp_table_monitor
+from mcp_kinetica.sql_context import mcp as mcp_sql_context
+from mcp_kinetica.table_tools import mcp as mcp_table_tools
 
 # Load environment variables
 load_dotenv()
@@ -26,15 +28,22 @@ fastmcp.settings.log_level = LOG_LEVEL
 
 # Initialize MCP client logger
 logging.basicConfig(level=LOG_LEVEL)
-logger = logging.getLogger("mcp-kinetica")
 
-mcp = FastMCP("mcp-kinetica", dependencies=["gpudb", "python-dotenv"])
-add_monitor_tools(mcp)
-add_sql_context_resource(mcp)
-add_table_tools(mcp)
+mcp: FastMCP = FastMCP("mcp-kinetica", dependencies=["gpudb", "python-dotenv"])
 
-def main():
+async def setup():
+    await mcp.import_server(mcp_sql_context)
+    await mcp.import_server(mcp_table_tools)
+    await mcp.import_server(mcp_table_monitor)
+    
+asyncio.run(setup())
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description='Kinetica mcp server')
+    parser.add_argument('--sqlgpt-mode', help="Force use of Kinetica text-to-sql generation", action='store_true')
+    args = parser.parse_args()
     mcp.run()
+
 
 if __name__ == "__main__":
     main()
