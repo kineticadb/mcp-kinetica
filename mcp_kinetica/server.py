@@ -5,7 +5,6 @@
 from dotenv import load_dotenv
 import logging
 import os
-import argparse
 import asyncio
 
 from fastmcp import FastMCP
@@ -14,6 +13,7 @@ import fastmcp.settings
 from mcp_kinetica.table_monitor import mcp as mcp_table_monitor
 from mcp_kinetica.sql_context import mcp as mcp_sql_context
 from mcp_kinetica.table_tools import mcp as mcp_table_tools
+from mcp_kinetica.sqlgpt import mcp as mcp_kinetica_sqlgpt
 
 # Load environment variables
 load_dotenv()
@@ -35,15 +35,12 @@ async def setup():
     await mcp.import_server(mcp_sql_context)
     await mcp.import_server(mcp_table_tools)
     await mcp.import_server(mcp_table_monitor)
-    
+    #await mcp.import_server(mcp_kinetica_sqlgpt)
+
 asyncio.run(setup())
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description='Kinetica mcp server')
-    parser.add_argument('--sqlgpt-mode', help="Force use of Kinetica text-to-sql generation", action='store_true')
-    args = parser.parse_args()
     mcp.run()
-
 
 if __name__ == "__main__":
     main()
