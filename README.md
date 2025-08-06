@@ -9,16 +9,17 @@
 	<a href="https://join.slack.com/t/kinetica-community/shared_invite/zt-1bt9x3mvr-uMKrXlSDXfy3oU~sKi84qg">Community Slack</a>
 </h5>
 
-
 # Kinetica MCP Server
 
 - [Overview](#overview)
-- [Features](#features)
-- [Installation](#installation)
-- [Setup/Configuration](#setup-and-configuration)
+  - [Tools](#tools)
+  - [Resources](#resources)
+- [Integrate with Claude Desktop](#integrate-with-claude-desktop)
+- [Test with MCP Inspector](#test-with-mcp-inspector)
+- [Test with Pytest](#test-with-pytest)
 - [Support](#support)
 - [Contact Us](#contact-us)
-
+- [References](#references)
 
 ## Overview
 
@@ -28,30 +29,27 @@ This project contains the source code for the Kinetica Model Context Protocol
 The Kinetica MCP server exposes tools and resources for interacting with
 Kinetica's database, SQL-GPT contexts, and real-time monitoring.
 
-
-## Features
-
 ### Tools
 
-- `list_tables()`
+- `list_tables(schema: str = "*")`
 
     List all available tables, views, and schemas in the Kinetica instance.
 
 - `describe_table(table_name: str)`
 
-    Show metadata and type schema for a specific table.
+    Return a dictionary of column name to column type.
 
-- `query_sql(sql: str)`
+- `query_sql(sql: str, limit: int = 10)`
 
     Run a read-only SQL query on the database, returns results as JSON.
 
-- `get_records(table_name: str, limit: int = 100)`
+- `get_records(table_name: str, limit: int = 10)`
 
     Fetch raw records from a table as a list of dictionaries.
 
-- `insert_json(table_name: str, records: list[dict])`
+- `insert_records(table_name: str, records: list[dict])`
 
-    Insert a list of JSON records into the specified table.
+    Insert a list of records into the specified table.
 
 - `start_table_monitor(table: str)`
 
@@ -63,75 +61,76 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
 
     Return a structured view of a SQL-GPT context, including:
 
-    - `table`: Fully qualified table name
-    - `comment`: Context description
-    - `rules`: List of defined semantic rules
-    - `column_comments`: Optional inline column comment block
+  - `context_name`: Fully qualified table name.
+  - `tables`: Table descriptions containing description, table rules, and column comments.
+  - `rules`: List of defined semantic rules.
+  - `samples`: One shot training examples.
 
+## Integrate with Claude Desktop
 
-## Installation
+In this example we will invoke the `uv run` command to install the `mcp-kinetica` package automatically when
+Claude desktop starts. For this to work we will use `uv` to create a virtual environment with `python` >=3.10 that
+will be used by the MCP runtime.
 
-The Kinetica MCP server requires the following component versions:
+If you have not already downloaded Claude desktop you can get it at <https://claude.ai/download>.
 
-- Python 3.10
-- Node.js 18
+> Note: As an alternative you could install the `mcp-kinetica` with pip and avoid using UV but it is recommended
+> in the fastmcp documentation.
 
-### MCP
+1. Make sure you have UV installed.
 
-The Kinetica MCP server can be installed with one of the following:
+    ```bash
+    pip install --upgrade uv 
+    ```
 
-- [Python PIP](#mcp-via-pip)
-- [UV](#mcp-via-uv)
+2. Create the python virtual environment.
 
-#### MCP via PIP
+    You must choose a directory `<your_venv_path>` for the python runtime.
 
-```env
-pip3 install mcp-kinetica
-```
+    ```bash
+    uv venv --python 3.12 <your_venv_path>
+    ```
 
-#### MCP via UV
+3. Make a note of the `python` and `uv` paths.
 
-```env
-uv add mcp-kinetica
-```
+    UV and your VENV could be using different python interpreters. Make a note of these paths and save them for
+    the claude config file.
 
-## Setup and Configuration 
+    > Note: Windows users should activate with `<your_venv_path>/bin/activate.bat`
 
-The MCP server uses environment variables to connect securely to your Kinetica
-instance. You can define these in a `.env` file, export them in your shell, or
-specify them in the Claude Desktop config.
+    ```bash
+    $ source <your_venv_path>/bin/activate
+    $ which uv
+    <uv_exe_path>
+    $ which python
+    <python_exe_path>
+    ```
 
-You can integrate the Kinetica MCP server in two ways:
-
-- [Claude Desktop](#claude-desktop-configuration)
-- [Test Configuration](#mcp-inspector-for-testing)
-
-### Claude Desktop Configuration 
-
-1. Open your Claude Desktop configuration file:
+4. Open your Claude Desktop configuration file:
 
     - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
     - **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
 
-2. Add an `mcp-kinetica` entry to the `mcpServers` block:
+5. Add an `mcp-kinetica` entry to the `mcpServers` block:
+
+    You will need to edit the `<uv_exe_path>`, `<python_exe_path>`, and Kinetica connection info.
 
     ```json
     {
       "mcpServers": {
         "mcp-kinetica": {
-          "command": "uv",
+          "command": "<uv_exe_path>",
           "args": [
             "run",
-            "--with",
-            "setuptools",
-            "--with",
-            "mcp-kinetica",
+            "--python", "<python_exe_path>",
+            "--with", "setuptools",
+            "--with", "mcp-kinetica",
             "mcp-kinetica"
           ],
           "env": {
             "KINETICA_URL": "<http://your-kinetica-host:9191>",
             "KINETICA_USER": "<your_username>",
-            "KINETICA_PASSWORD": "<your_password>",
+            "KINETICA_PASSWD": "<your_password>",
             "KINETICA_LOGLEVEL": "INFO"
           }
         }
@@ -139,12 +138,14 @@ You can integrate the Kinetica MCP server in two ways:
     }
     ```
 
-3. Update the environment variable values as needed for your Kinetica instance.
+6. Restart Claude Desktop to apply the changes.
 
-4. Restart Claude Desktop to apply the changes.
+    In Claude Desktop open *Settings->Connectors* and look for an entry named mcp-kinetica.
 
+## Test with MCP Inspector
 
-### MCP Inspector (For Testing)
+The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is a web UI used for exploring the features of
+an MCP Service and simulating the activities of an LLM model. You will need Node.js >= 18 for the inspector.
 
 1. Clone the GitHub project:
 
@@ -158,13 +159,14 @@ You can integrate the Kinetica MCP server in two ways:
     ```env
     KINETICA_URL=http://<your-kinetica-host>:9191
     KINETICA_USER=<your_username>
-    KINETICA_PASSWORD=<your_password>
+    KINETICA_PASSWD=<your_password>
     ```
 
-3. Update Python environment:
+3. Update Python environment with uv:
 
     ```bash
-    uv sync
+    [~/mcp-kinetica]$ pip install uv
+    [~/mcp-kinetica]$ uv sync
     ```
 
 4. Activate Python environment:
@@ -178,19 +180,19 @@ You can integrate the Kinetica MCP server in two ways:
    - Linux:
 
        ```bash
-       source .venv/bin/activate
+       [~/mcp-kinetica]$ source .venv/bin/activate
        ```
 
 5. Use `fastmcp dev` for an interactive testing environment with the MCP Inspector:
 
     ```bash
-    fastmcp dev mcp_kinetica/server.py 
+    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/server.py 
     ```
 
     To create a local package in editable mode:
 
     ```bash
-    fastmcp dev mcp_kinetica/server.py --with-editable .
+    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/server.py --with-editable .
     ```
 
 6. Launch MCP Inspector in a browser, pointing at the URL output by the
@@ -202,13 +204,55 @@ You can integrate the Kinetica MCP server in two ways:
     MCP Inspector is up and running at http://127.0.0.1:6274
     ```
 
-**Note:** MCP inspector will default to `uv` as the command to run.  If not
-using `uv` for package management, the MCP Inspector parameters can be updated
-as follows:
-          
-- *Command*:  `python3`
-- *Arguments*:  `mcp_kinetica/server.py`
+> **Note:** MCP inspector will default to `uv` as the command to run.  If not
+> using `uv` for package management, the MCP Inspector parameters can be updated
+> as follows:
+>
+> - *Command*:  `python3`
+> - *Arguments*:  `mcp_kinetica/server.py`
 
+## Test with Pytest
+
+This section describes how to run the test suite under `tests/test_server.py`.
+
+> **Note:** The `uv` utility is not required.
+
+1. Clone the GitHub project:
+
+    ```bash
+    git clone git@github.com:kineticadb/mcp-kinetica.git
+    cd mcp-kinetica
+    ```
+
+2. Create a `.env` file in your project root with the following keys:
+
+    ```env
+    KINETICA_URL=http://<your-kinetica-host>:9191
+    KINETICA_USER=<your_username>
+    KINETICA_PASSWD=<your_password>
+    ```
+
+3. Install the test dependencies:
+
+    ```bash
+    [~/mcp-kinetica]$ pip install --group test
+    ```
+
+4. Run pytest:
+
+    ```bash
+    [~/mcp-kinetica]$ pytest -rA
+    [...]
+    PASSED tests/test_server.py::test_create_test_table
+    PASSED tests/test_server.py::test_list_tables
+    PASSED tests/test_server.py::test_describe_table
+    PASSED tests/test_server.py::test_get_records
+    PASSED tests/test_server.py::test_insert_records
+    PASSED tests/test_server.py::test_query_sql_success
+    PASSED tests/test_server.py::test_query_sql_failure
+    PASSED tests/test_server.py::test_create_context
+    PASSED tests/test_server.py::test_get_sql_context
+    ```
 
 ## Support
 
@@ -220,7 +264,6 @@ For support, you can post on
 ``kinetica`` tag or
 [Slack](https://join.slack.com/t/kinetica-community/shared_invite/zt-1bt9x3mvr-uMKrXlSDXfy3oU~sKi84qg).
 
-
 ## Contact Us
 
 - Ask a question on Slack:
@@ -229,3 +272,11 @@ For support, you can post on
   [Follow @kineticadb](https://github.com/kineticadb)
 - Email us:  <support@kinetica.com>
 - Visit:  <https://www.kinetica.com/contact/>
+
+## References
+
+- [Real-Time Geospatial Queries with MCP + Kinetica](https://www.kinetica.com/blog/real-time-geospatial-queries-with-mcp-kinetica/)
+- [Access FSQ OS Places](https://docs.foursquare.com/data-products/docs/access-fsq-os-places)
+- [UV Introduction](https://docs.astral.sh/uv/)
+- [FastMCP Documentation](https://gofastmcp.com/getting-started/welcome)
+- [Kinetica Python DEV Guide](https://github.com/kineticadb/examples/tree/master/python_dev_guide)
