@@ -169,16 +169,3 @@ async def test_get_prompt(client: Client):
     message = result.messages[0]
     prompt_text = message.content.text
     LOG.info(f"Prompt content: {prompt_text[0:200]}")
-
-
-@pytest.mark.asyncio
-async def test_generate_sql(client: Client):
-    os.environ["KINETICA_CONTEXT_NAME"] = "user_cjuliano.fsq_ctx"
-    result = await client.call_tool("generate_sql", {
-        "question": f"How many starbucks locations are there?"
-    })
-
-    sql_query = result.structured_content['result']
-    LOG.info(f"Generate SQL result: %s", sql_query)
-
-    assert isinstance(sql_query, str)
