@@ -11,7 +11,7 @@ from collections import deque
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
-from .server_util import create_kinetica_connection
+from .util import create_kinetica_connection
 
 logger = logging.getLogger(__name__)
 

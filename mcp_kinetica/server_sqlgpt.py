@@ -10,9 +10,7 @@ import asyncio
 from fastmcp import FastMCP
 import fastmcp.settings
 
-from mcp_kinetica.table_monitor import mcp as mcp_table_monitor
-from mcp_kinetica.sql_context import mcp as mcp_sql_context
-from mcp_kinetica.table_tools import mcp as mcp_table_tools
+from mcp_kinetica.generate_sql import mcp as mcp_kinetica_sqlgpt
 
 # Load environment variables
 load_dotenv()
@@ -28,13 +26,11 @@ fastmcp.settings.log_level = LOG_LEVEL
 # Initialize MCP client logger
 logging.basicConfig(level=LOG_LEVEL)
 
-mcp: FastMCP = FastMCP("mcp-kinetica")
+mcp: FastMCP = FastMCP("mcp-sqlgpt")
 #dependencies=["gpudb", "python-dotenv"])
 
 async def setup():
-    await mcp.import_server(mcp_sql_context)
-    await mcp.import_server(mcp_table_tools)
-    await mcp.import_server(mcp_table_monitor)
+    await mcp.import_server(mcp_kinetica_sqlgpt)
 
 asyncio.run(setup())
 

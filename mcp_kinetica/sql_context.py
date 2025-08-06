@@ -6,7 +6,7 @@
 from typing import Union
 from fastmcp import FastMCP
 
-from .server_util import create_kinetica_connection, query_sql_sub
+from .util import create_kinetica_connection, query_sql_sub
 
 mcp = FastMCP("mcp-kinetica-context")
 

@@ -7,7 +7,7 @@ import os
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
-from .server_util import ( create_kinetica_connection,
+from .util import ( create_kinetica_connection,
                           query_sql_sub )
 
 LOG = logging.getLogger(__name__)
