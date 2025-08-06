@@ -8,6 +8,10 @@ from gpudb import (
     GPUdbTableMonitor as Monitor
 )
 from collections import deque
+from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
+
+from .server_util import create_kinetica_connection
 
 logger = logging.getLogger(__name__)
 
@@ -52,3 +56,37 @@ class MCPTableMonitor(Monitor.Client):
 
     def on_error(self, message: str):
         self._logger.error(f"[ERROR] {message}")
+
+ 
+# A global registry of active table monitors
+active_monitors = {}
+
+def add_monitor_tools(mcp: FastMCP):
+    
+    @mcp.tool()
+    def start_table_monitor(table: str) -> str:
+        """
+        Starts a table monitor on the given Kinetica table and logs insert/update/delete events.
+        """
+        if table in active_monitors:
+            return f"Monitor already running for table '{table}'"
+
+        dbc = create_kinetica_connection()
+
+        monitor = MCPTableMonitor(dbc, table)
+        monitor.start_monitor()
+
+        active_monitors[table] = monitor
+        return f"Monitoring started on table '{table}'"
+
+    @mcp.resource("table-monitor://{table}")
+    def get_recent_inserts(table: str) -> list[dict]:
+        """
+        Returns the most recent inserts from a monitored table.
+        This resource is generic and does not assume a specific schema or use case.
+        """
+        monitor = active_monitors.get(table)
+        if monitor is None:
+            raise ToolError(f"No monitor found for table '{table}'.")
+
+        return list(monitor.recent_inserts)
