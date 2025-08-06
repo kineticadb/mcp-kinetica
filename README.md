@@ -14,6 +14,7 @@
 - [Overview](#overview)
   - [Tools](#tools)
   - [Resources](#resources)
+  - [Environment Variables](#environment-variables)
 - [Integrate with Claude Desktop](#integrate-with-claude-desktop)
 - [Test with MCP Inspector](#test-with-mcp-inspector)
 - [Test with Pytest](#test-with-pytest)
@@ -31,9 +32,10 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
 
 ### Tools
 
-- `list_tables(schema: str = "*")`
+- `list_tables()`
 
     List all available tables, views, and schemas in the Kinetica instance.
+    Results will be filtered by the KINETICA_SCHEMA env variable.
 
 - `describe_table(table_name: str)`
 
@@ -65,6 +67,16 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
   - `tables`: Table descriptions containing description, table rules, and column comments.
   - `rules`: List of defined semantic rules.
   - `samples`: One shot training examples.
+
+### Environment Variables
+
+The server should be configured with these environment variables.
+
+- `KINETICA_URL`: The Kinetica API URL (e.g. `http://your-kinetica-host:9191`)
+- `KINETICA_USER`: Kientica username
+- `KINETICA_PASSWD`: Kinetica password
+- `KINETICA_SCHEMA`: Filter tables by schema (optional, default=*)
+- `KINETICA_LOGLEVEL`: Server Loglevel (optional, default=warning)
 
 ## Integrate with Claude Desktop
 
@@ -131,7 +143,8 @@ If you have not already downloaded Claude desktop you can get it at <https://cla
             "KINETICA_URL": "<http://your-kinetica-host:9191>",
             "KINETICA_USER": "<your_username>",
             "KINETICA_PASSWD": "<your_password>",
-            "KINETICA_LOGLEVEL": "INFO"
+            "KINETICA_LOGLEVEL": "INFO",
+            "KINETICA_SCHEMA": "*"
           }
         }
       }

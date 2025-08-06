@@ -4,6 +4,7 @@
 
 import logging
 import importlib
+import os
 
 from gpudb import GPUdbTable
 from fastmcp import FastMCP
@@ -12,9 +13,11 @@ from fastmcp.exceptions import ToolError
 from .server_util import ( create_kinetica_connection,
                           query_sql_sub )
 
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 mcp = FastMCP("mcp-kinetica-table")
+
+SCHEMA =  os.getenv("KINETICA_SCHEMA", default="*")
 
 @mcp.prompt(name="kinetica-sql-agent")
 def kinetica_sql_prompt() -> str:
@@ -28,14 +31,15 @@ def kinetica_sql_prompt() -> str:
     with (importlib.resources.files("mcp_kinetica") / 'kinetica_sql_system_prompt.md').open("r") as f:
         return f.read()
 
-@mcp.tool()
-def list_tables(schema: str = "*") -> list[str]:
-    """List all available tables, views, and schemas in the database."""
-    logger.info("Fetching all tables, views, and schemas")
-    dbc = create_kinetica_connection()
 
+@mcp.tool()
+def list_tables() -> list[str]:
+    """List all available tables, views, and schemas in the database."""
+
+    LOG.info(f"list_tables: shcema={SCHEMA}")
+    dbc = create_kinetica_connection()
     try:
-        response = dbc.show_table(schema, options={"show_children": "true"})
+        response = dbc.show_table(SCHEMA, options={"show_children": "true"})
         return sorted(response.get("table_names", []))
     
     except Exception as e:
@@ -45,7 +49,8 @@ def list_tables(schema: str = "*") -> list[str]:
 @mcp.tool()
 def describe_table(table_name: str) -> dict[str, str]:
     """Return a dictionary of column name to column type."""
-    logger.info(f"Describing table: {table_name}")
+
+    LOG.info(f"describe_table: {table_name}")
     dbc = create_kinetica_connection()
 
     try:
@@ -59,11 +64,10 @@ def describe_table(table_name: str) -> dict[str, str]:
         raise ToolError(f"Failed to describe table '{table_name}': {str(e)}")
 
 
-
 @mcp.tool()
 def query_sql(sql: str, limit: int = 10) -> list[dict]:
     """Run a safe SQL query on the Kinetica database."""
-    logger.info(f"Executing SQL: {sql}")
+    LOG.info(f"query_sql: {sql}")
     dbc = create_kinetica_connection()    
     return query_sql_sub(dbc=dbc, sql=sql, limit=limit)
 
@@ -71,7 +75,7 @@ def query_sql(sql: str, limit: int = 10) -> list[dict]:
 @mcp.tool()
 def get_records(table_name: str, limit: int = 10) -> list[dict]:
     """Fetch raw JSON records from a given table."""
-    logger.info(f"Getting records from {table_name}")
+    LOG.info(f"get_records: table={table_name}")
     dbc = create_kinetica_connection()
     return query_sql_sub(dbc=dbc, sql=f"SELECT * FROM {table_name}", limit=limit)
 
@@ -79,7 +83,7 @@ def get_records(table_name: str, limit: int = 10) -> list[dict]:
 @mcp.tool()
 def insert_records(table_name: str, records: list[dict]) -> int:
     """Insert records into a specified table."""
-    logger.info(f"Inserting into table {table_name}")
+    LOG.info(f"insert_records: table={table_name}")
     dbc = create_kinetica_connection()
 
     try:

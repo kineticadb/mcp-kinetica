@@ -11,9 +11,10 @@ from fastmcp.exceptions import ToolError
 
 from mcp_kinetica.server import mcp
 
+SCHEMA = "user_cjuliano"
+
 LOG = logging.getLogger(__name__)
 
-SCHEMA = "user_cjuliano"
 TABLE = f"{SCHEMA}.mcp_test_users"
 
 @pytest_asyncio.fixture
@@ -43,10 +44,7 @@ def test_create_test_table():
 
 @pytest.mark.asyncio
 async def test_list_tables(client: Client):
-    result = await client.call_tool(
-        name="list_tables", 
-        arguments={"schema": SCHEMA}
-    )
+    result = await client.call_tool(name="list_tables")
     tables = result.structured_content['result']
     LOG.info(f"Tables: {tables}")
     assert isinstance(tables, list)
