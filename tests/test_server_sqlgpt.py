@@ -1,5 +1,5 @@
 
-import os
+import json
 import pytest
 import pytest_asyncio
 import logging
@@ -16,15 +16,19 @@ async def client():
         await mcp_client.ping()
         yield mcp_client
 
+@pytest.mark.asyncio
+async def test_list_contexts(client: Client):
+    contexts = await client.call_tool("list_sql_contexts")
+    ctx_formatted = json.dumps(contexts.structured_content, indent=4)
+    LOG.info(f"List SQL contexts result: {ctx_formatted}")
+
 
 @pytest.mark.asyncio
 async def test_generate_sql(client: Client):
-    os.environ["KINETICA_CONTEXT_NAME"] = "user_cjuliano.fsq_ctx"
     result = await client.call_tool("generate_sql", {
         "question": f"How many starbucks locations are there?"
     })
 
     sql_query = result.structured_content['result']
     LOG.info(f"Generate SQL result: %s", sql_query)
-
     assert isinstance(sql_query, str)

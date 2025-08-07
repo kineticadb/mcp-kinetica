@@ -6,7 +6,7 @@
 from typing import Union
 from fastmcp import FastMCP
 
-from .util import create_kinetica_connection, query_sql_sub
+from .util import DBC, query_sql_sub
 
 mcp = FastMCP("mcp-kinetica-context")
 
@@ -48,9 +48,8 @@ def get_sql_context(context_name: str) -> dict[str, Union[str, list, dict]]:
     Extracts the table, comment, rules, and comments block (if any) from the context definition.
     """
 
-    dbc = create_kinetica_connection()
     sql = f'DESCRIBE CONTEXT {context_name}'
-    records = query_sql_sub(dbc=dbc, sql=sql, limit=100)
+    records = query_sql_sub(dbc=DBC, sql=sql, limit=100)
 
     tables_list = []
     samples_dict = []

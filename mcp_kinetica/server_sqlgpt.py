@@ -12,15 +12,8 @@ import fastmcp.settings
 
 from mcp_kinetica.features.generate_sql import mcp as mcp_kinetica_sqlgpt
 
-# Load environment variables
 load_dotenv()
-
-DEFAULT_LOG_LEVEL = "WARNING"
-
-# Text-based log level
-LOG_LEVEL = os.getenv("KINETICA_LOGLEVEL", DEFAULT_LOG_LEVEL)
-
-# Set MCP server log level
+LOG_LEVEL = os.getenv("KINETICA_LOGLEVEL", "WARNING")
 fastmcp.settings.log_level = LOG_LEVEL
 
 # Initialize MCP client logger

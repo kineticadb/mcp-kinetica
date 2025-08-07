@@ -3,17 +3,20 @@
 ##
 
 from gpudb import GPUdb
+import os
 import logging
 from fastmcp.exceptions import ToolError
 
 logger = logging.getLogger(__name__)
 
-def create_kinetica_connection() -> GPUdb:
-    """Create and return a GPUdb client instance using env variables."""
-    return GPUdb.get_connection(logging_level=logger.level)
+SCHEMA =  os.getenv("KINETICA_SCHEMA", default="*")
+CONTEXT_NAME =  os.getenv("KINETICA_CONTEXT_NAME")
 
+# Create a global connection to the Kinetica database
+DBC = GPUdb.get_connection(logging_level=logger.level)
 
 def query_sql_sub(dbc: GPUdb, sql: str, limit: int = 10) -> list[dict]:
+    """ Execute a query and return as a list of dict encoded records."""
     response = dbc.execute_sql_and_decode(statement=sql, limit=limit, 
                                                 get_column_major=False)
     status_info = response.status_info

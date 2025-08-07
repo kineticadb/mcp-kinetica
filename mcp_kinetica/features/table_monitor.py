@@ -11,7 +11,7 @@ from collections import deque
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
-from .util import create_kinetica_connection
+from .util import DBC
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +72,7 @@ def start_table_monitor(table: str) -> str:
     if table in active_monitors:
         return f"Monitor already running for table '{table}'"
 
-    dbc = create_kinetica_connection()
-
-    monitor = MCPTableMonitor(dbc, table)
+    monitor = MCPTableMonitor(DBC, table)
     monitor.start_monitor()
 
     active_monitors[table] = monitor
