@@ -9,6 +9,7 @@ import asyncio
 from fastmcp import FastMCP
 import fastmcp.settings
 
+# Load environment variables before importing features
 load_dotenv()
 
 from mcp_kinetica.features.generate_sql import mcp as mcp_kinetica_sqlgpt
@@ -24,6 +25,7 @@ mcp: FastMCP = FastMCP("mcp-sqlgpt")
 #dependencies=["gpudb", "python-dotenv"])
 
 async def setup():
+    # add modular features to this server
     await mcp.import_server(mcp_kinetica_sqlgpt)
     await mcp.import_server(mcp_sql_tools)
 

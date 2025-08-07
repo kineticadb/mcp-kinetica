@@ -9,6 +9,7 @@ import asyncio
 from fastmcp import FastMCP
 import fastmcp.settings
 
+# Load environment variables before importing features
 load_dotenv()
 
 from mcp_kinetica.features.table_monitor import mcp as mcp_table_monitor
@@ -26,6 +27,7 @@ mcp: FastMCP = FastMCP("mcp-kinetica")
 #dependencies=["gpudb", "python-dotenv"])
 
 async def setup():
+    # add modular features to this server
     await mcp.import_server(mcp_sql_context)
     await mcp.import_server(mcp_table_tools)
     await mcp.import_server(mcp_table_monitor)

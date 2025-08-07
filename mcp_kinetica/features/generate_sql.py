@@ -18,10 +18,15 @@ mcp = FastMCP("mcp-kinetica-sqlgpt")
 @mcp.tool()
 def list_sql_contexts() -> dict[str, list]:
     """List available SQL contexts and their corresponding tables."""
-    LOG.info("Listing SQL contexts")
-    
+
+    ctx_filter = "*"
+    if SCHEMA is not None:
+        ctx_filter = SCHEMA + ".*"
+
+    LOG.info("list_sql_contexts: filter=%s", ctx_filter)
+
     #dbc = create_kinetica_connection()
-    sql = f"describe context {SCHEMA}.*"
+    sql = f"describe context {ctx_filter}"
 
     context_dict = {}
     for row in query_sql_sub(DBC, sql):

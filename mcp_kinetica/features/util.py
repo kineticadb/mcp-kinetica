@@ -9,7 +9,7 @@ from fastmcp.exceptions import ToolError
 
 logger = logging.getLogger(__name__)
 
-SCHEMA =  os.getenv("KINETICA_SCHEMA", default="*")
+SCHEMA =  os.getenv("KINETICA_SCHEMA")
 CONTEXT_NAME =  os.getenv("KINETICA_CONTEXT_NAME")
 
 # Create a global connection to the Kinetica database

@@ -33,9 +33,13 @@ def kinetica_sql_prompt() -> str:
 def list_tables() -> list[str]:
     """List all available tables, views, and schemas in the database."""
 
-    LOG.info(f"list_tables: shcema={SCHEMA}")
+    schema_filter = SCHEMA
+    if schema_filter is None:
+        schema_filter = "*"
+
+    LOG.info(f"list_tables: schema={schema_filter}")
     try:
-        response = DBC.show_table(SCHEMA, options={"show_children": "true"})
+        response = DBC.show_table(table_name=schema_filter, options={"show_children": "true"})
         return sorted(response.get("table_names", []))
     
     except Exception as e:
