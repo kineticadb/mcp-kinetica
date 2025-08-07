@@ -6,11 +6,11 @@ from dotenv import load_dotenv
 import logging
 import os
 import asyncio
-
 from fastmcp import FastMCP
 import fastmcp.settings
 
 from mcp_kinetica.features.generate_sql import mcp as mcp_kinetica_sqlgpt
+from mcp_kinetica.features.sql_tools import mcp as mcp_sql_tools
 
 load_dotenv()
 LOG_LEVEL = os.getenv("KINETICA_LOGLEVEL", "WARNING")
@@ -24,6 +24,7 @@ mcp: FastMCP = FastMCP("mcp-sqlgpt")
 
 async def setup():
     await mcp.import_server(mcp_kinetica_sqlgpt)
+    await mcp.import_server(mcp_sql_tools)
 
 asyncio.run(setup())
 
