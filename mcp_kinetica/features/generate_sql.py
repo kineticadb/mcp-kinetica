@@ -7,7 +7,6 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 from .util import ( query_sql_sub,
-                    CONTEXT_NAME,
                     SCHEMA,
                     DBC )
 
@@ -53,17 +52,13 @@ def list_sql_contexts() -> dict[str, list]:
 
 
 @mcp.tool()
-def generate_sql(question: str) -> str:
+def generate_sql(context_name: str, question: str) -> str:
     """Generate SQL queries using Kinetica's text-to-SQL capabilities."""
 
-    LOG.info("Generate SQL: %s", question)
-    
-    if CONTEXT_NAME is None:
-        raise ToolError("Env variable KINETICA_CONTEXT_NAME is not set.")
-    LOG.info("Using context: %s", CONTEXT_NAME)
+    LOG.info("Generate SQL (%s): %s", context_name, question)
 
     #dbc = create_kinetica_connection()
-    sql = f"generate sql for '{question}' with options (context_names = ('{CONTEXT_NAME}'));"
+    sql = f"generate sql for '{question}' with options (context_names = ('{context_name}'));"
     
     result = query_sql_sub(DBC, sql)
     return result[0]['Response']

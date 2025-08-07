@@ -9,8 +9,10 @@ from fastmcp.exceptions import ToolError
 
 logger = logging.getLogger(__name__)
 
+if os.getenv("KINETICA_PASSWD") is None:
+    raise RuntimeError("KINETICA_PASSWD environment variable is not set.")
+
 SCHEMA =  os.getenv("KINETICA_SCHEMA")
-CONTEXT_NAME =  os.getenv("KINETICA_CONTEXT_NAME")
 
 # Create a global connection to the Kinetica database
 DBC = GPUdb.get_connection(logging_level=logger.level)

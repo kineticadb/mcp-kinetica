@@ -26,7 +26,8 @@ async def test_list_contexts(client: Client):
 @pytest.mark.asyncio
 async def test_generate_sql(client: Client):
     result = await client.call_tool("generate_sql", {
-        "question": f"How many starbucks locations are there?"
+        "question": f"How many starbucks locations are there?",
+        "context_name": "user_cjuliano.fsq_ctx"
     })
 
     sql_query = result.structured_content['result']

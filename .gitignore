@@ -12,3 +12,4 @@ mcp_kinetica.egg-info/
 uv.lock
 .vscode/
 build/
+*.bak
