@@ -10,9 +10,9 @@ import asyncio
 from fastmcp import FastMCP
 import fastmcp.settings
 
-from mcp_kinetica.table_monitor import mcp as mcp_table_monitor
-from mcp_kinetica.sql_context import mcp as mcp_sql_context
-from mcp_kinetica.table_tools import mcp as mcp_table_tools
+from mcp_kinetica.features.table_monitor import mcp as mcp_table_monitor
+from mcp_kinetica.features.sql_context import mcp as mcp_sql_context
+from mcp_kinetica.features.table_tools import mcp as mcp_table_tools
 
 # Load environment variables
 load_dotenv()

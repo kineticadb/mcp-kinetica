@@ -28,8 +28,7 @@ def kinetica_sql_prompt() -> str:
 
     # Note: this may not work with a fastmcp install, depending on environment.
     #       It will work for fastmcp dev and PyPI-based installs
-    with (importlib.resources.files("mcp_kinetica") / 'kinetica_sql_system_prompt.md').open("r") as f:
-        return f.read()
+    return importlib.resources.read_text(__package__, 'kinetica_sql_system_prompt.md')
 
 
 @mcp.tool()

@@ -10,7 +10,7 @@ import asyncio
 from fastmcp import FastMCP
 import fastmcp.settings
 
-from mcp_kinetica.generate_sql import mcp as mcp_kinetica_sqlgpt
+from mcp_kinetica.features.generate_sql import mcp as mcp_kinetica_sqlgpt
 
 # Load environment variables
 load_dotenv()
