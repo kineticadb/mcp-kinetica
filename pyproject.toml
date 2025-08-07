@@ -18,6 +18,7 @@ keywords = [ "kinetica", "gpudb" ]
 
 [project.scripts]
 mcp-kinetica = "mcp_kinetica.server:main"
+mcp-sqlgpt = "mcp_kinetica.server_sqlgpt:main"
 
 [project.urls]
 Homepage = "https://github.com/kineticadb/mcp-kinetica/"

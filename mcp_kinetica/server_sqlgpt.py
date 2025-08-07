@@ -9,10 +9,11 @@ import asyncio
 from fastmcp import FastMCP
 import fastmcp.settings
 
+load_dotenv()
+
 from mcp_kinetica.features.generate_sql import mcp as mcp_kinetica_sqlgpt
 from mcp_kinetica.features.sql_tools import mcp as mcp_sql_tools
 
-load_dotenv()
 LOG_LEVEL = os.getenv("KINETICA_LOGLEVEL", "WARNING")
 fastmcp.settings.log_level = LOG_LEVEL
 
@@ -26,7 +27,16 @@ async def setup():
     await mcp.import_server(mcp_kinetica_sqlgpt)
     await mcp.import_server(mcp_sql_tools)
 
-asyncio.run(setup())
+try:
+    # Utilities like `fastmcp dev` already have a running event loop
+    # so we can't use `asyncio.run()`
+    loop = asyncio.get_running_loop()
+    asyncio.ensure_future(setup(), loop=loop)
+
+except RuntimeError:
+    # no event loop is running, so we create one
+    asyncio.run(setup())
+
 
 def main() -> None:
     mcp.run()
