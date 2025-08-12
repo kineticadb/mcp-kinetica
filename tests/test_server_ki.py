@@ -5,7 +5,7 @@ import pytest_asyncio
 import logging
 from fastmcp import Client
 
-from mcp_kinetica.server_sqlgpt import mcp
+from mcp_kinetica.server_ki import mcp
 
 LOG = logging.getLogger(__name__)
 

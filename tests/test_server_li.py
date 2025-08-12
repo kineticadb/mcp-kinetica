@@ -9,7 +9,7 @@ from gpudb import GPUdb, GPUdbTable
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
-from mcp_kinetica.server import mcp
+from mcp_kinetica.server_li import mcp
 
 SCHEMA = "user_cjuliano"
 

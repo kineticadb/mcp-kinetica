@@ -17,8 +17,8 @@ classifiers = [
 keywords = [ "kinetica", "gpudb" ]
 
 [project.scripts]
-mcp-kinetica = "mcp_kinetica.server:main"
-mcp-sqlgpt = "mcp_kinetica.server_sqlgpt:main"
+mcp-kinetica-li = "mcp_kinetica.server_li:main"
+mcp-kinetica-ki = "mcp_kinetica.server_ki:main"
 
 [project.urls]
 Homepage = "https://github.com/kineticadb/mcp-kinetica/"
