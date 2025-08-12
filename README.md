@@ -57,6 +57,14 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
 
     Start a real-time monitor for inserts, updates, and deletes on a table.
 
+- `list_sql_contexts()`
+
+    List available SQL contexts and their corresponding tables.
+
+- `generate_sql(context_name: str, question: str)`
+
+    Generate SQL queries using Kinetica's text-to-SQL capabilities.
+
 ### Resources
 
 - `sql-context://{context_name}`
@@ -137,7 +145,7 @@ If you have not already downloaded Claude desktop you can get it at <https://cla
             "--python", "<python_exe_path>",
             "--with", "setuptools",
             "--with", "mcp-kinetica",
-            "mcp-kinetica"
+            "mcp-kinetica-ki"
           ],
           "env": {
             "KINETICA_URL": "<http://your-kinetica-host:9191>",
@@ -199,13 +207,13 @@ an MCP Service and simulating the activities of an LLM model. You will need Node
 5. Use `fastmcp dev` for an interactive testing environment with the MCP Inspector:
 
     ```bash
-    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/server.py 
+    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/server_ki.py 
     ```
 
     To create a local package in editable mode:
 
     ```bash
-    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/server.py --with-editable .
+    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/server_ki.py --with-editable .
     ```
 
 6. Launch MCP Inspector in a browser, pointing at the URL output by the
@@ -222,11 +230,11 @@ an MCP Service and simulating the activities of an LLM model. You will need Node
 > as follows:
 >
 > - *Command*:  `python3`
-> - *Arguments*:  `mcp_kinetica/server.py`
+> - *Arguments*:  `mcp_kinetica/server_ki.py`
 
 ## Test with Pytest
 
-This section describes how to run the test suite under `tests/test_server.py`.
+This section describes how to run the test suite under `tests/test_server_ki.py`.
 
 > **Note:** The `uv` utility is not required.
 
@@ -256,15 +264,15 @@ This section describes how to run the test suite under `tests/test_server.py`.
     ```bash
     [~/mcp-kinetica]$ pytest -rA
     [...]
-    PASSED tests/test_server.py::test_create_test_table
-    PASSED tests/test_server.py::test_list_tables
-    PASSED tests/test_server.py::test_describe_table
-    PASSED tests/test_server.py::test_get_records
-    PASSED tests/test_server.py::test_insert_records
-    PASSED tests/test_server.py::test_query_sql_success
-    PASSED tests/test_server.py::test_query_sql_failure
-    PASSED tests/test_server.py::test_create_context
-    PASSED tests/test_server.py::test_get_sql_context
+    PASSED tests/test_server_ki.py::test_create_test_table
+    PASSED tests/test_server_ki.py::test_list_tables
+    PASSED tests/test_server_ki.py::test_describe_table
+    PASSED tests/test_server_ki.py::test_get_records
+    PASSED tests/test_server_ki.py::test_insert_records
+    PASSED tests/test_server_ki.py::test_query_sql_success
+    PASSED tests/test_server_ki.py::test_query_sql_failure
+    PASSED tests/test_server_ki.py::test_create_context
+    PASSED tests/test_server_ki.py::test_get_sql_context
     ```
 
 ## Support
