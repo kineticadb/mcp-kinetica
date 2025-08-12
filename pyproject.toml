@@ -17,7 +17,8 @@ classifiers = [
 keywords = [ "kinetica", "gpudb" ]
 
 [project.scripts]
-mcp-kinetica = "mcp_kinetica.server:main"
+mcp-kinetica-li = "mcp_kinetica.server_li:main"
+mcp-kinetica-ki = "mcp_kinetica.server_ki:main"
 
 [project.urls]
 Homepage = "https://github.com/kineticadb/mcp-kinetica/"
@@ -26,12 +27,15 @@ Homepage = "https://github.com/kineticadb/mcp-kinetica/"
 requires = ["setuptools>=77"] # minimum version of setuptools for toml support
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools.packages.find]
-include = ["mcp_kinetica", "tests"]
-namespaces = true
+# [tool.setuptools.packages.find]
+# include = ["mcp_kinetica", "tests"]
+# namespaces = true
+
+[tool.setuptools]
+packages = ["mcp_kinetica", "mcp_kinetica.features"]
 
 [tool.setuptools.package-data]
-mcp_kinetica = ["kinetica_sql_system_prompt.md"]
+"mcp_kinetica.features" = ["*.md"]
 
 [tool.uv.sources]
 mcp-kinetica = { workspace = true }

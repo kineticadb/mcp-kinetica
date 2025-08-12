@@ -1,3 +1,5 @@
+
+import os
 import pytest
 import pytest_asyncio
 import json
@@ -7,11 +9,12 @@ from gpudb import GPUdb, GPUdbTable
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
-from mcp_kinetica.server import mcp
+from mcp_kinetica.server_li import mcp
+
+SCHEMA = "user_cjuliano"
 
 LOG = logging.getLogger(__name__)
 
-SCHEMA = "ki_home"
 TABLE = f"{SCHEMA}.mcp_test_users"
 
 @pytest_asyncio.fixture
@@ -41,10 +44,7 @@ def test_create_test_table():
 
 @pytest.mark.asyncio
 async def test_list_tables(client: Client):
-    result = await client.call_tool(
-        name="list_tables", 
-        arguments={"schema": SCHEMA}
-    )
+    result = await client.call_tool(name="list_tables")
     tables = result.structured_content['result']
     LOG.info(f"Tables: {tables}")
     assert isinstance(tables, list)
@@ -129,15 +129,15 @@ async def test_query_sql_failure(client: Client):
 
 
 def test_create_context():
-    context_sql = """
-    CREATE or replace CONTEXT "demo"."mcp_ctx"
-    (TABLE = "ki_home"."mcp_test_users",
+    context_sql = f"""
+    CREATE or replace CONTEXT {SCHEMA}."mcp_ctx"
+    (TABLE = {SCHEMA}."mcp_test_users",
         COMMENT = 'This is a test',
         RULES = ('Test table rule','Test table rule '' with quote'),
         COMMENTS = ('email' = 'email column',
         'name' = 'user name')),
-    (SAMPLES = ('How many users are there?' = 'select count(1) from ki_home.mcp_test_users',
-        'What are all the users?' = 'select * from ki_home.mcp_test_users')),
+    (SAMPLES = ('How many users are there?' = 'select count(1) from {SCHEMA}.mcp_test_users',
+        'What are all the users?' = 'select * from {SCHEMA}.mcp_test_users')),
     (RULES = ('Test context rule.','Test context  rule '' with quote'))
     """
 
@@ -147,7 +147,7 @@ def test_create_context():
 
 @pytest.mark.asyncio
 async def test_get_sql_context(client: Client):
-    context_name = "demo.mcp_ctx"
+    context_name = f"{SCHEMA}.mcp_ctx"
     result = await client.read_resource(f"sql-context://{context_name}")
     context = json.loads(result[0].text)
 
@@ -159,3 +159,11 @@ async def test_get_sql_context(client: Client):
     assert "tables" in context
     assert "samples" in context
     assert "rules" in context and isinstance(context["rules"], list)
+
+
+@pytest.mark.asyncio
+async def test_get_prompt(client: Client):
+    result = await client.get_prompt("kinetica-sql-agent")
+    message = result.messages[0]
+    prompt_text = message.content.text
+    LOG.info(f"Prompt content: {prompt_text[0:200]}")

@@ -12,8 +12,11 @@
 # Kinetica MCP Server
 
 - [Overview](#overview)
+- [Features](#features)
+  - [Inferencing Modes](#inferencing-modes)
   - [Tools](#tools)
   - [Resources](#resources)
+  - [Environment Variables](#environment-variables)
 - [Integrate with Claude Desktop](#integrate-with-claude-desktop)
 - [Test with MCP Inspector](#test-with-mcp-inspector)
 - [Test with Pytest](#test-with-pytest)
@@ -29,11 +32,30 @@ This project contains the source code for the Kinetica Model Context Protocol
 The Kinetica MCP server exposes tools and resources for interacting with
 Kinetica's database, SQL-GPT contexts, and real-time monitoring.
 
+## Features
+
+### Inferencing Modes
+
+The MCP server has separate modes depending on how you want the LLM to generate SQL. Each mode contains
+a different set tools to facilitate the workflow.
+
+- Kinetica Inference Mode (`mcp-kinetica-ki`)
+
+    The LLM will choose a SQL context and use Kinetica's native text-to-sql capabilities via the `generate_sql()` tool.
+    This requires that you have appropriate SQL contexts configured in Kinetica.
+    (see [SQL-GPT](https://docs.kinetica.com/7.2/sql-gpt/))
+
+- Local Inference Mode (`mcp-kinetica-li`)
+
+    The LLM will retrieve table descriptions generate its own SQL. This mode will result in more tokens being consumed
+    from table descriptions but it does not require the use of SQL contexts.
+
 ### Tools
 
-- `list_tables(schema: str = "*")`
+- `list_tables()`
 
     List all available tables, views, and schemas in the Kinetica instance.
+    Results will be filtered by the KINETICA_SCHEMA env variable.
 
 - `describe_table(table_name: str)`
 
@@ -55,6 +77,14 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
 
     Start a real-time monitor for inserts, updates, and deletes on a table.
 
+- `list_sql_contexts()`
+
+    List available SQL contexts and their corresponding tables.
+
+- `generate_sql(context_name: str, question: str)`
+
+    Generate SQL queries using Kinetica's text-to-SQL capabilities.
+
 ### Resources
 
 - `sql-context://{context_name}`
@@ -65,6 +95,16 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
   - `tables`: Table descriptions containing description, table rules, and column comments.
   - `rules`: List of defined semantic rules.
   - `samples`: One shot training examples.
+
+### Environment Variables
+
+The server should be configured with these environment variables.
+
+- `KINETICA_URL`: The Kinetica API URL (e.g. `http://your-kinetica-host:9191`)
+- `KINETICA_USER`: Kientica username
+- `KINETICA_PASSWD`: Kinetica password
+- `KINETICA_SCHEMA`: Filter tables by schema (optional, default=*)
+- `KINETICA_LOGLEVEL`: Server Loglevel (optional, default=warning)
 
 ## Integrate with Claude Desktop
 
@@ -108,12 +148,15 @@ If you have not already downloaded Claude desktop you can get it at <https://cla
 
 4. Open your Claude Desktop configuration file:
 
+    The app provides a shortcut in *Settings->Developer->Edit Config*.
+
     - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
     - **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
 
 5. Add an `mcp-kinetica` entry to the `mcpServers` block:
 
-    You will need to edit the `<uv_exe_path>`, `<python_exe_path>`, and Kinetica connection info.
+    You will need to edit the `<uv_exe_path>`, `<python_exe_path>`, and Kinetica connection info. If you want to use
+    local inference mode then replace `mcp-kinetica-ki` with `mcp-kinetica-li`.
 
     ```json
     {
@@ -125,13 +168,14 @@ If you have not already downloaded Claude desktop you can get it at <https://cla
             "--python", "<python_exe_path>",
             "--with", "setuptools",
             "--with", "mcp-kinetica",
-            "mcp-kinetica"
+            "mcp-kinetica-ki"
           ],
           "env": {
             "KINETICA_URL": "<http://your-kinetica-host:9191>",
             "KINETICA_USER": "<your_username>",
             "KINETICA_PASSWD": "<your_password>",
-            "KINETICA_LOGLEVEL": "INFO"
+            "KINETICA_LOGLEVEL": "INFO",
+            "KINETICA_SCHEMA": "*"
           }
         }
       }
@@ -186,13 +230,13 @@ an MCP Service and simulating the activities of an LLM model. You will need Node
 5. Use `fastmcp dev` for an interactive testing environment with the MCP Inspector:
 
     ```bash
-    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/server.py 
+    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/server_ki.py 
     ```
 
     To create a local package in editable mode:
 
     ```bash
-    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/server.py --with-editable .
+    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/server_ki.py --with-editable .
     ```
 
 6. Launch MCP Inspector in a browser, pointing at the URL output by the
@@ -209,11 +253,11 @@ an MCP Service and simulating the activities of an LLM model. You will need Node
 > as follows:
 >
 > - *Command*:  `python3`
-> - *Arguments*:  `mcp_kinetica/server.py`
+> - *Arguments*:  `mcp_kinetica/server_ki.py`
 
 ## Test with Pytest
 
-This section describes how to run the test suite under `tests/test_server.py`.
+This section describes how to run the test suite under `tests/test_server_ki.py`.
 
 > **Note:** The `uv` utility is not required.
 
@@ -243,15 +287,18 @@ This section describes how to run the test suite under `tests/test_server.py`.
     ```bash
     [~/mcp-kinetica]$ pytest -rA
     [...]
-    PASSED tests/test_server.py::test_create_test_table
-    PASSED tests/test_server.py::test_list_tables
-    PASSED tests/test_server.py::test_describe_table
-    PASSED tests/test_server.py::test_get_records
-    PASSED tests/test_server.py::test_insert_records
-    PASSED tests/test_server.py::test_query_sql_success
-    PASSED tests/test_server.py::test_query_sql_failure
-    PASSED tests/test_server.py::test_create_context
-    PASSED tests/test_server.py::test_get_sql_context
+    PASSED tests/test_server_ki.py::test_list_contexts
+    PASSED tests/test_server_ki.py::test_generate_sql
+    PASSED tests/test_server_li.py::test_create_test_table
+    PASSED tests/test_server_li.py::test_list_tables
+    PASSED tests/test_server_li.py::test_describe_table
+    PASSED tests/test_server_li.py::test_get_records
+    PASSED tests/test_server_li.py::test_insert_records
+    PASSED tests/test_server_li.py::test_query_sql_success
+    PASSED tests/test_server_li.py::test_query_sql_failure
+    PASSED tests/test_server_li.py::test_create_context
+    PASSED tests/test_server_li.py::test_get_sql_context
+    PASSED tests/test_server_li.py::test_get_prompt
     ```
 
 ## Support
