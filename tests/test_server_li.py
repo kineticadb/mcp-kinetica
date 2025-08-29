@@ -11,7 +11,7 @@ from fastmcp.exceptions import ToolError
 
 from mcp_kinetica.server_li import mcp
 
-SCHEMA = "user_cjuliano"
+SCHEMA = "ki_home"
 
 LOG = logging.getLogger(__name__)
 
