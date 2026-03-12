@@ -1,15 +1,16 @@
 
-import os
-import pytest
-import pytest_asyncio
 import json
 import logging
+import os
+
 import pandas as pd
-from gpudb import GPUdb, GPUdbTable
+import pytest
+import pytest_asyncio
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
+from gpudb import GPUdb, GPUdbTable
 
-from mcp_kinetica.server_li import mcp
+os.environ["KINETICA_TTS_MODE"] = "local"
 
 SCHEMA = "ki_home"
 
@@ -19,6 +20,7 @@ TABLE = f"{SCHEMA}.mcp_test_users"
 
 @pytest_asyncio.fixture
 async def client():
+    from mcp_kinetica.mcp_main import mcp
     async with Client(mcp) as mcp_client:
         LOG.info(f"Connected: {mcp_client.is_connected()}")
         await mcp_client.ping()
@@ -115,7 +117,7 @@ async def test_query_sql_success(client: Client):
     first_rec = records[0]
 
     assert len(records) == 2
-    assert "user_id" in first_rec.keys()
+    assert "user_id" in first_rec
 
 
 @pytest.mark.asyncio

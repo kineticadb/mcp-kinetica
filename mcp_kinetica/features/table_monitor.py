@@ -3,24 +3,21 @@
 ##
 
 import logging
-from gpudb import ( 
-    GPUdb,
-    GPUdbTableMonitor as Monitor
-)
 from collections import deque
-from fastmcp import FastMCP
+
+from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
+from gpudb import GPUdb
+from gpudb import GPUdbTableMonitor as Monitor
 
-from .util import DBC
+from ..kinetica_util import KineticaUtil
 
-logger = logging.getLogger(__name__)
-
-mcp = FastMCP("mcp-kinetica-monitor")
+LOG = logging.getLogger(__name__)
 
 class MCPTableMonitor(Monitor.Client):
     def __init__(self, dbc: GPUdb, table_name: str):
         self._logger = logging.getLogger("TableMonitor")
-        self._logger.setLevel(logger.level)
+        self._logger.setLevel(LOG.level)
         self.recent_inserts = deque(maxlen=50)  # Stores last 50 inserts
 
         callbacks = [
@@ -59,33 +56,38 @@ class MCPTableMonitor(Monitor.Client):
     def on_error(self, message: str):
         self._logger.error(f"[ERROR] {message}")
 
- 
-# A global registry of active table monitors
-active_monitors = {}
 
+class TableMonitorProvider:
     
-@mcp.tool()
-def start_table_monitor(table: str) -> str:
-    """
-    Starts a table monitor on the given Kinetica table and logs insert/update/delete events.
-    """
-    if table in active_monitors:
-        return f"Monitor already running for table '{table}'"
+    def __init__(self, mcp_instance: FastMCP, k_util: KineticaUtil) -> None:
+        mcp_instance.tool(self.start_table_monitor)
+        mcp_instance.resource("table-monitor://{table}")(self.get_recent_inserts)
+        self.active_monitors = {}
+        self.k_util = k_util
+    
 
-    monitor = MCPTableMonitor(DBC, table)
-    monitor.start_monitor()
+    def start_table_monitor(self, ctx: Context, table: str) -> str:
+        """
+        Starts a table monitor on the given Kinetica table and logs insert/update/delete events.
+        """
+        if table in self.active_monitors:
+            return f"Monitor already running for table '{table}'"
 
-    active_monitors[table] = monitor
-    return f"Monitoring started on table '{table}'"
+        dbc: GPUdb = self.k_util.get_gpudb(ctx)
+        monitor = MCPTableMonitor(dbc, table)
+        monitor.start_monitor()
 
-@mcp.resource("table-monitor://{table}")
-def get_recent_inserts(table: str) -> list[dict]:
-    """
-    Returns the most recent inserts from a monitored table.
-    This resource is generic and does not assume a specific schema or use case.
-    """
-    monitor = active_monitors.get(table)
-    if monitor is None:
-        raise ToolError(f"No monitor found for table '{table}'.")
+        self.active_monitors[table] = monitor
+        return f"Monitoring started on table '{table}'"
 
-    return list(monitor.recent_inserts)
+
+    def get_recent_inserts(self, ctx: Context, table: str) -> list[dict]:
+        """
+        Returns the most recent inserts from a monitored table.
+        This resource is generic and does not assume a specific schema or use case.
+        """
+        monitor = self.active_monitors.get(table)
+        if monitor is None:
+            raise ToolError(f"No monitor found for table '{table}'.")
+
+        return list(monitor.recent_inserts)
