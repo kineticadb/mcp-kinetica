@@ -1,3 +1,3 @@
 # mcp_kinetica/__init__.py
-__version__ = "7.2.3.1"
+__version__ = "7.2.3.2"
 
