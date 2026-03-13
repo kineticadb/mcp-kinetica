@@ -13,13 +13,17 @@
 
 - [Overview](#overview)
 - [Features](#features)
-  - [Inferencing Modes](#inferencing-modes)
+  - [Text-to-SQL Modes](#text-to-sql-modes)
   - [Tools](#tools)
   - [Resources](#resources)
-  - [Environment Variables](#environment-variables)
+- [Configuration](#configuration)
+  - [No Authentication](#no-authentication)
+  - [OAUTH](#oauth)
 - [Integrate with Claude Desktop](#integrate-with-claude-desktop)
-- [Test with MCP Inspector](#test-with-mcp-inspector)
-- [Test with Pytest](#test-with-pytest)
+- [Testing](#testing)
+  - [Launch MCP Inspector](#launch-mcp-inspector)
+  - [Run Unit tests with Pytest](#run-unit-tests-with-pytest)
+  - [Unit testing OAUTH2](#unit-testing-oauth2)
 - [Support](#support)
 - [Contact Us](#contact-us)
 - [References](#references)
@@ -34,21 +38,37 @@ Kinetica's database, SQL-GPT contexts, and real-time monitoring.
 
 ## Features
 
-### Inferencing Modes
+### Text-to-SQL Modes
 
 The MCP server has separate modes depending on how you want the LLM to generate SQL. Each mode contains
-a different set tools to facilitate the workflow.
+a different set tools to facilitate the workflow. This functionality is controlled by the environment
+variable KINETICA_TTS_MODE.
 
-- Kinetica Inference Mode (`mcp-kinetica-ki`)
+- Server-side Inference Mode (KINETICA_TTS_MODE=server)
 
     The LLM will choose a SQL context and use Kinetica's native text-to-sql capabilities via the `generate_sql()` tool.
     This requires that you have appropriate SQL contexts configured in Kinetica.
-    (see [SQL-GPT](https://docs.kinetica.com/7.2/sql-gpt/))
+    (see [SQL-GPT](https://docs.kinetica.com/7.2/sql-gpt/)). Available tools are:
 
-- Local Inference Mode (`mcp-kinetica-li`)
+  - `list_sql_contexts`
+  - `generate_sql`
+  - `query_sql`
+  - `describe_table`
+
+- Local Inference Mode (KINETICA_TTS_MODE=local, default)
 
     The LLM will retrieve table descriptions generate its own SQL. This mode will result in more tokens being consumed
-    from table descriptions but it does not require the use of SQL contexts.
+    from table descriptions but it does not require the use of SQL contexts. Available tools are:
+  
+  - resource `sql-context://{context_name}`
+  - resource `table-monitor://{table}`
+  - `query_sql`
+  - `describe_table`
+  - `start_table_monitor`
+  - `kinetica_sql_prompt`
+  - `list_tables`
+  - `get_records`
+  - `insert_records`
 
 ### Tools
 
@@ -96,15 +116,45 @@ a different set tools to facilitate the workflow.
   - `rules`: List of defined semantic rules.
   - `samples`: One shot training examples.
 
-### Environment Variables
+## Configuration
 
-The server should be configured with these environment variables.
+The server can optionally be configured to support the OAUTH `authorization-code` workflow. Common variables are:
 
 - `KINETICA_URL`: The Kinetica API URL (e.g. `http://your-kinetica-host:9191`)
+- `KINETICA_SCHEMA`: Filter tables by schema (optional, default=`*`)
+- `KINETICA_LOGLEVEL`: Server Loglevel (optional, default=`warning`)
+- `KINETICA_TTS_MODE`: Indicates the tex-to-sql mode ( `server` or `local` )
+
+> See [conf_tmpl.sh](bin/conf_tmpl.sh) for an example configuration.
+
+### No Authentication
+
+If the MCP will allow access from any user you must specify a username/password that it should use when connecting
+to Kinetica.
+
 - `KINETICA_USER`: Kientica username
 - `KINETICA_PASSWD`: Kinetica password
-- `KINETICA_SCHEMA`: Filter tables by schema (optional, default=*)
-- `KINETICA_LOGLEVEL`: Server Loglevel (optional, default=warning)
+
+### OAUTH
+
+When OAUTH is enabled users will be redirected to the authentication server where they will enter their Kinetica
+credentials. The authentication server will then redirected back to the MCP server where they will be given an
+authentication token. This token can be perpetually cached to avoid the need for future authentications. Additionally
+the MCP server will authenticate with Kinetica using a handshake key that will allow it to impersonate the
+authenticated user and their permissions.
+
+To enable this you will need:
+
+1. An Authentication server capable of providing an
+[Authorization Grant](https://aaronparecki.com/oauth-2-simplified/#authorization).
+2. The kinetica handshake key.
+
+The required parameters to enable set these variables:
+
+- `KINETICA_OAUTH_HANDSHAKE_KEY`: The unencrypted handshake key. This can be found in `httpd/etc/gpudb_httpd.conf`.
+- `KINETICA_OAUTH_EXTERNAL_HOST`: The external of the MCP and OAUTH servers.
+
+> Note: It is recommended that you not use `KINETICA_SCHEMA` only when you are using OAUTH2
 
 ## Integrate with Claude Desktop
 
@@ -155,8 +205,7 @@ If you have not already downloaded Claude desktop you can get it at <https://cla
 
 5. Add an `mcp-kinetica` entry to the `mcpServers` block:
 
-    You will need to edit the `<uv_exe_path>`, `<python_exe_path>`, and Kinetica connection info. If you want to use
-    local inference mode then replace `mcp-kinetica-ki` with `mcp-kinetica-li`.
+    You will need to edit the `<uv_exe_path>`, `<python_exe_path>`, and Kinetica connection info.
 
     ```json
     {
@@ -168,14 +217,15 @@ If you have not already downloaded Claude desktop you can get it at <https://cla
             "--python", "<python_exe_path>",
             "--with", "setuptools",
             "--with", "mcp-kinetica",
-            "mcp-kinetica-ki"
+            "mcp-kinetica"
           ],
           "env": {
             "KINETICA_URL": "<http://your-kinetica-host:9191>",
             "KINETICA_USER": "<your_username>",
             "KINETICA_PASSWD": "<your_password>",
             "KINETICA_LOGLEVEL": "INFO",
-            "KINETICA_SCHEMA": "*"
+            "KINETICA_SCHEMA": "*",
+            "KINETICA_TTS_MODE": "server"
           }
         }
       }
@@ -186,7 +236,9 @@ If you have not already downloaded Claude desktop you can get it at <https://cla
 
     In Claude Desktop open *Settings->Connectors* and look for an entry named mcp-kinetica.
 
-## Test with MCP Inspector
+## Testing
+
+### Launch MCP Inspector
 
 The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is a web UI used for exploring the features of
 an MCP Service and simulating the activities of an LLM model. You will need Node.js >= 18 for the inspector.
@@ -230,13 +282,13 @@ an MCP Service and simulating the activities of an LLM model. You will need Node
 5. Use `fastmcp dev` for an interactive testing environment with the MCP Inspector:
 
     ```bash
-    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/server_ki.py 
+    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/mcp_main.py 
     ```
 
     To create a local package in editable mode:
 
     ```bash
-    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/server_ki.py --with-editable .
+    [~/mcp-kinetica]$ fastmcp dev mcp_kinetica/mcp_main.py --with-editable .
     ```
 
 6. Launch MCP Inspector in a browser, pointing at the URL output by the
@@ -253,11 +305,11 @@ an MCP Service and simulating the activities of an LLM model. You will need Node
 > as follows:
 >
 > - *Command*:  `python3`
-> - *Arguments*:  `mcp_kinetica/server_ki.py`
+> - *Arguments*:  `mcp_kinetica/mcp_main.py`
 
-## Test with Pytest
+### Run Unit tests with Pytest
 
-This section describes how to run the test suite under `tests/test_server_ki.py`.
+This section describes how to run unauthenticated test cases under `tests/`.
 
 > **Note:** The `uv` utility is not required.
 
@@ -279,7 +331,7 @@ This section describes how to run the test suite under `tests/test_server_ki.py`
 3. Install the test dependencies:
 
     ```bash
-    [~/mcp-kinetica]$ pip install --group test
+    [~/mcp-kinetica]$ pip install --group test .
     ```
 
 4. Run pytest:
@@ -299,6 +351,52 @@ This section describes how to run the test suite under `tests/test_server_ki.py`
     PASSED tests/test_server_li.py::test_create_context
     PASSED tests/test_server_li.py::test_get_sql_context
     PASSED tests/test_server_li.py::test_get_prompt
+    ```
+
+### Unit testing OAUTH2
+
+The fastmcp library allows for authenticated testing on localhost without the need for SSL. This means we can
+configure the MCP and auth servers with unencrypted ports and connections from localhost will work.
+
+1. Configure the auth server to use unencrypted ports. For example:
+
+    ```sh
+    KINETICA_URL=https://172.31.72.27:8082/gpudb
+    KINETICA_EXTERNAL_HOST=localhost
+    KINETICA_MCP_URI=http://localhost:8390
+    KINETICA_HANDSHAKE_KEY='NDMxMTQ5MjAyNS0wOS0xOCAxMjozMDo1MS40MzExNTc='
+    ```
+
+    Start the auth server.
+
+    ```sh
+    [kinetica-auth/bin]$ ./start_auth.sh
+    ```
+
+2. Configure the MCP server to use unencrypted ports. For example:
+
+    ```sh
+    KINETICA_URL=http://172.31.72.27:9191
+    KINETICA_LOGLEVEL=INFO
+    KINETICA_OAUTH_URL=http://localhost:8380
+    KINETICA_OAUTH_HANDSHAKE_KEY='NDMxMTQ5MjAyNS0wOS0xOCAxMjozMDo1MS40MzExNTc='
+    KINETICA_OAUTH_EXTERNAL_HOST=localhost
+    KINETICA_OAUTH_BASE_URL=http://localhost:8390
+    ```
+
+    Start the MCP server.
+
+    ```sh
+    [kinetica-mcp/bin]$ ./start_mcp.sh
+    ```
+
+3. Run the authentication test:
+
+    Your browser should open to a login page. After logging in with a Kinetica user you will be redirected back
+    to the MCP server.
+
+    ```sh
+    [kinetica-mcp]$ pytest tests/test_oauth.py::test_query_sql_success
     ```
 
 ## Support

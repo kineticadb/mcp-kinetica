@@ -1,24 +1,26 @@
 [project]
 name = "mcp-kinetica"
-version = "7.2.3.1"
-requires-python = ">=3.10"
-dependencies = [
-    "fastmcp>=2.7.1", # requires Python3.10
-    "gpudb>=7.2.2.9", # requires Python3.8
-]
-
+version = "7.2.3.2"
 description = "MCP Server for Kinetica Database"
+authors = [
+    {name = "Chad Juliano", email = "cjuliano@kinetica.com"}
+]
 readme = "README.md"
 license = "MIT"
+keywords = [ "kinetica", "gpudb" ]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Database",
 ]
-keywords = [ "kinetica", "gpudb" ]
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=2.12.3", # requires Python3.10
+    "gpudb>=7.2.2.9", # requires Python3.8
+    "uv>=0.9.7"
+]
 
 [project.scripts]
-mcp-kinetica-li = "mcp_kinetica.server_li:main"
-mcp-kinetica-ki = "mcp_kinetica.server_ki:main"
+mcp-kinetica = "mcp_kinetica.mcp_main:main"
 
 [project.urls]
 Homepage = "https://github.com/kineticadb/mcp-kinetica/"
@@ -42,14 +44,35 @@ mcp-kinetica = { workspace = true }
 
 [dependency-groups]
 dev = [
-    "mcp-kinetica"
-]
-test = [
-    "gpudb[dataframe]>=7.2.2.11",
     "mcp-kinetica",
+    "gpudb[dataframe]>=7.2.2.11",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",
+    "ruff>=0.15.4",
 ]
+
+[tool.ruff]
+line-length = 120
+indent-width = 4
+#target-version = "py39"
+#exclude = [ 'tests/*' ]
+
+[tool.ruff.lint]
+select = [
+    "E", # pycodestyle
+    "F", # Pyflakes
+    "UP", # pyupgrade
+    "B", # flake8-bugbear
+    "SIM", # flake8-simplify
+    "I", # isort
+]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
